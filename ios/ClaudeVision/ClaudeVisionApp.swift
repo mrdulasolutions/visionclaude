@@ -16,6 +16,12 @@ struct ClaudeVisionApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.dark)
+                .onOpenURL { url in
+                    // Handle Meta AI app callback after registration
+                    Task {
+                        _ = try? await Wearables.shared.handleUrl(url)
+                    }
+                }
         }
     }
 }

@@ -217,32 +217,48 @@ struct RayBanInstructionsView: View {
 
                     // Prerequisites
                     sectionHeader("Prerequisites", icon: "checkmark.circle")
-                    bulletPoint("Meta Ray-Ban Smart Glasses (any model)")
-                    bulletPoint("Meta View app installed on this iPhone")
-                    bulletPoint("Meta Developer Account")
-                    linkButton("Create Developer Account", url: "https://developers.meta.com")
+                    bulletPoint("Meta Ray-Ban Smart Glasses or Ray-Ban Display glasses")
+                    bulletPoint("Meta AI app installed on this iPhone")
+                    bulletPoint("Glasses paired and connected via Meta AI app")
+                    linkButton("Download Meta AI App", url: "https://apps.apple.com/app/meta-ai/id1662457680")
 
                     Divider()
 
                     // Step-by-step
-                    sectionHeader("Enable Developer Mode", icon: "wrench.and.screwdriver")
+                    sectionHeader("Step 1: Pair Your Glasses", icon: "wave.3.right")
 
-                    stepView(1, "Open the Meta View app on your iPhone")
+                    stepView(1, "Open the Meta AI app on your iPhone")
                     stepView(2, "Sign in with your Meta account")
-                    stepView(3, "Pair your glasses via Bluetooth (if not already)")
-                    stepView(4, "Go to Settings → your glasses → Developer Mode")
-                    stepView(5, "Toggle Developer Mode ON")
-                    stepView(6, "Restart your glasses:\n• Hold the button for 15 seconds to power off\n• Press the button to power back on")
-                    stepView(7, "Return to ClaudeVision and select \"Meta Ray-Ban\" as camera source")
+                    stepView(3, "Follow the in-app pairing flow to connect your glasses via Bluetooth")
+                    stepView(4, "Make sure glasses are fully updated (Meta AI app will prompt if needed)")
 
                     Divider()
 
-                    // DAT SDK note
-                    sectionHeader("Developer Note", icon: "exclamationmark.triangle")
-                    Text("The Meta Device Access Toolkit (DAT) SDK is required for camera frame access. Apply for SDK access through Meta's developer portal. Once you have the SDK, add the framework to the Xcode project and the RayBanManager will handle the integration.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    linkButton("Meta DAT SDK Portal", url: "https://developers.meta.com")
+                    sectionHeader("Step 2: Enable Developer Mode", icon: "wrench.and.screwdriver")
+
+                    stepView(5, "In the Meta AI app, go to:\nSettings → Your glasses → Developer Mode")
+                    stepView(6, "Toggle Developer Mode ON")
+                    stepView(7, "Restart your glasses:\n• Hold the button for 15 seconds to power off\n• Press the button to power back on")
+
+                    Divider()
+
+                    sectionHeader("Step 3: Connect in ClaudeVision", icon: "eyeglasses")
+
+                    stepView(8, "Return to ClaudeVision")
+                    stepView(9, "Go to Settings → Camera Source → select Meta Ray-Ban")
+                    stepView(10, "Tap \"Connect\" — ClaudeVision will register with Meta AI")
+                    stepView(11, "You may be redirected to the Meta AI app to approve the connection — tap Allow")
+                    stepView(12, "Once connected, the camera feed from your glasses will appear in ClaudeVision")
+
+                    Divider()
+
+                    sectionHeader("Troubleshooting", icon: "questionmark.circle")
+                    bulletPoint("No device found: Make sure glasses are powered on with hinges open")
+                    bulletPoint("Stream won't start: Check Developer Mode is ON in Meta AI app")
+                    bulletPoint("Glasses need update: Open Meta AI app and follow update prompts")
+                    bulletPoint("Connection lost: Close and reopen ClaudeVision, or restart glasses")
+                    linkButton("DAT Developer Docs", url: "https://wearables.developer.meta.com/docs/develop/")
+                    linkButton("Community Forum", url: "https://github.com/facebook/meta-wearables-dat-ios/discussions")
 
                     Spacer(minLength: 40)
                 }

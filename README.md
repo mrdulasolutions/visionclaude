@@ -184,18 +184,48 @@ By using the Wearables Device Access Toolkit, you agree to the [Meta Wearables D
 
 By enabling Meta integrations, including through this SDK, Meta may collect information about how users' Meta devices communicate with your app. Meta will use this information in accordance with their [Privacy Policy](https://www.meta.com/legal/privacy-policy/). ClaudeVision opts out of analytics by default via `Info.plist` (`MWDAT → Analytics → OptOut = YES`).
 
-## MCP Tools
+## MCP Tools & Claude Desktop Integration
 
-ClaudeVision automatically discovers tools from your Claude Desktop configuration at:
+ClaudeVision shares the same MCP servers as your Claude Desktop app. The gateway reads your existing config at:
 
 ```
 ~/Library/Application Support/Claude/claude_desktop_config.json
 ```
 
-Any MCP server configured there will be available through voice commands. For example:
+Any MCP server you add to Claude Desktop is automatically available in ClaudeVision — no extra setup needed.
+
+```
+Claude Desktop  ──→  MCP servers (email, calendar, etc.)
+                         ↑
+ClaudeVision    ──→  Gateway Server ──→ same MCP servers
+(your phone)         (your Mac)
+```
+
+### What's shared
+
+- **MCP servers** — Both Claude Desktop and ClaudeVision connect to the same tool servers (email, calendar, Slack, HubSpot, etc.)
+- **Tool configuration** — Add a server once in Claude Desktop, it appears in both
+
+### What's separate
+
+- **Conversations** — ClaudeVision has its own conversation history, independent of Claude Desktop
+- **Models** — Claude Desktop uses your selected model; the gateway defaults to Sonnet (configurable in `server/.env`)
+- **API keys** — The gateway uses its own Anthropic API key
+
+### Adding more tools
+
+1. Open Claude Desktop settings
+2. Add MCP servers (Slack, Google Calendar, HubSpot, etc.)
+3. Restart the ClaudeVision gateway (`./start.sh`)
+4. New tools are automatically discovered
+
+### Voice command examples
+
+Once tools are connected, just speak naturally:
 - "Check my email" → uses email MCP tools
 - "What's on my calendar?" → uses calendar MCP tools
-- "Send a message to..." → uses messaging MCP tools
+- "Send a Slack message to..." → uses Slack MCP tools
+- "Look up this contact in HubSpot" → uses CRM tools
 
 ## License
 

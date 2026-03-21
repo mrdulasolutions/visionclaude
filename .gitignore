@@ -1,9 +1,16 @@
 # Dependencies
 node_modules/
+server/node_modules/
 package-lock.json
 
-# Environment / secrets
+# Build output
+server/dist/
+ios/build/
+ios/DerivedData/
+
+# Environment (contains API key!)
 .env
+server/.env
 *.env.local
 
 # macOS
@@ -11,15 +18,27 @@ package-lock.json
 **/.DS_Store
 .AppleDouble
 .LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
 # Xcode
 ClaudeVision/ios/ClaudeVision.xcodeproj/project.xcworkspace/xcuserdata/
 ClaudeVision/ios/ClaudeVision.xcodeproj/xcuserdata/
+ClaudeVision/ios/ClaudeVision.xcodeproj/xcshareddata/
 ClaudeVision/ios/build/
+ios/ClaudeVision.xcodeproj/project.xcworkspace/
+ios/ClaudeVision.xcodeproj/xcuserdata/
+ios/ClaudeVision.xcodeproj/xcshareddata/
 DerivedData/
 *.xcuserstate
 *.xcscmblueprint
 *.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
 
 # Swift Package Manager
 .build/
@@ -32,6 +51,12 @@ npm-debug.log*
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
 
 # Temporary
 tmp/

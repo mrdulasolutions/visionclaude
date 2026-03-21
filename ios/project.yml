@@ -1,0 +1,47 @@
+name: ClaudeVision
+options:
+  bundleIdPrefix: com.claudevision
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "26.0"
+
+packages:
+  meta-wearables-dat-ios:
+    url: https://github.com/facebook/meta-wearables-dat-ios
+    from: "0.5.0"
+  ElevenLabsKit:
+    url: https://github.com/steipete/ElevenLabsKit
+    from: "0.1.0"
+
+targets:
+  ClaudeVision:
+    type: application
+    platform: iOS
+    sources:
+      - ClaudeVision
+    dependencies:
+      - package: meta-wearables-dat-ios
+        product: MWDATCore
+      - package: meta-wearables-dat-ios
+        product: MWDATCamera
+      - package: ElevenLabsKit
+        product: ElevenLabsKit
+    settings:
+      base:
+        INFOPLIST_FILE: ClaudeVision/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        PRODUCT_BUNDLE_IDENTIFIER: com.claudevision.app
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        DEVELOPMENT_TEAM: ""
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+schemes:
+  ClaudeVision:
+    build:
+      targets:
+        ClaudeVision: all
+    run:
+      config: Debug

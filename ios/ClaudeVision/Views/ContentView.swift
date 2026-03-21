@@ -14,13 +14,13 @@ struct ContentView: View {
                 CameraPreviewView(session: viewModel.cameraManager.captureSession)
                     .ignoresSafeArea()
             } else {
-                // Ray-Ban: show latest frame as image
-                if let image = viewModel.rayBanManager.latestFrame,
-                   let uiImage = UIImage(data: image) {
+                // Ray-Ban: show latest frame as image (updated at 24fps)
+                if let uiImage = viewModel.rayBanManager.latestImage {
                     Image(uiImage: uiImage)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .ignoresSafeArea()
+                        .clipped()
                 } else {
                     // No frame yet from glasses
                     ZStack {
@@ -29,9 +29,17 @@ struct ContentView: View {
                             Image(systemName: "eyeglasses")
                                 .font(.system(size: 48))
                                 .foregroundColor(.orange.opacity(0.5))
-                            Text("Waiting for glasses feed...")
-                                .font(.callout)
-                                .foregroundColor(.white.opacity(0.5))
+                            if viewModel.rayBanManager.connectionStatus.isConnected {
+                                ProgressView()
+                                    .tint(.orange)
+                                Text("Receiving stream...")
+                                    .font(.callout)
+                                    .foregroundColor(.white.opacity(0.5))
+                            } else {
+                                Text(viewModel.rayBanManager.connectionStatus.label)
+                                    .font(.callout)
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
                         }
                     }
                 }
@@ -128,6 +136,12 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.transcript.count)
         .animation(.easeInOut(duration: 0.2), value: viewModel.state)
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
         .task {
             guard !hasRequestedPermissions else { return }
             hasRequestedPermissions = true

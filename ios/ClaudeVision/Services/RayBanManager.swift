@@ -26,8 +26,10 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     // MARK: - FrameSource Protocol
 
     @Published var latestFrame: Data?
+    @Published var latestImage: UIImage? // For live preview display
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var connectionStatus: FrameSourceStatus = .disconnected
+    @Published var frameCount: Int = 0
 
     let sourceType: FrameSourceType = .rayBan
 
@@ -95,11 +97,11 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         let selector = AutoDeviceSelector(wearables: wearables)
         self.deviceSelector = selector
 
-        // Configure stream — low res, 1fps is fine for Claude vision
+        // Stream at 24fps for smooth preview — we throttle JPEG capture for Claude separately
         let config = StreamSessionConfig(
             videoCodec: .raw,
             resolution: .low,
-            frameRate: max(1, UInt(1.0 / frameInterval))
+            frameRate: 24
         )
         let session = StreamSession(streamSessionConfig: config, deviceSelector: selector)
         self.streamSession = session
@@ -136,17 +138,24 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
             }
         }
 
-        // Listen for video frames
+        // Listen for video frames — update preview on every frame, throttle JPEG for Claude
         frameToken = session.videoFramePublisher.listen { [weak self] (videoFrame: VideoFrame) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let now = Date()
-                guard now.timeIntervalSince(self.lastCaptureTime) >= self.frameInterval else { return }
-                self.lastCaptureTime = now
 
-                if let uiImage = videoFrame.makeUIImage(),
-                   let jpegData = uiImage.jpegData(compressionQuality: self.jpegQuality) {
-                    self.latestFrame = jpegData
+                guard let uiImage = videoFrame.makeUIImage() else { return }
+
+                // Always update preview image for smooth display
+                self.latestImage = uiImage
+                self.frameCount += 1
+
+                // Throttle JPEG capture for Claude (every frameInterval seconds)
+                let now = Date()
+                if now.timeIntervalSince(self.lastCaptureTime) >= self.frameInterval {
+                    self.lastCaptureTime = now
+                    if let jpegData = uiImage.jpegData(compressionQuality: self.jpegQuality) {
+                        self.latestFrame = jpegData
+                    }
                 }
             }
         }

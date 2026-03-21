@@ -174,13 +174,15 @@ ClaudeVision supports Meta Ray-Ban Smart Glasses as an alternative camera source
 
 ### Developer Access
 
-The Meta Device Access Toolkit (DAT) SDK is required for camera frame access from the glasses. The `RayBanManager.swift` is pre-wired with all integration points — just add the SDK framework:
-
-1. Apply for DAT SDK access at [developers.meta.com](https://developers.meta.com)
-2. Download and add the framework to the Xcode project
-3. Uncomment the DAT SDK imports and delegate methods in `RayBanManager.swift`
+The DAT SDK is included automatically via Swift Package Manager from [github.com/facebook/meta-wearables-dat-ios](https://github.com/facebook/meta-wearables-dat-ios). No manual SDK download needed — Xcode resolves it when you open the project.
 
 The app includes a built-in setup guide (Settings → Meta Ray-Ban → Setup Instructions) that walks users through the pairing and developer mode process.
+
+### Meta Wearables Developer Terms
+
+By using the Wearables Device Access Toolkit, you agree to the [Meta Wearables Developer Terms](https://wearables.developer.meta.com/terms), including the [Acceptable Use Policy](https://wearables.developer.meta.com/acceptable-use-policy).
+
+By enabling Meta integrations, including through this SDK, Meta may collect information about how users' Meta devices communicate with your app. Meta will use this information in accordance with their [Privacy Policy](https://www.meta.com/legal/privacy-policy/). ClaudeVision opts out of analytics by default via `Info.plist` (`MWDAT → Analytics → OptOut = YES`).
 
 ## MCP Tools
 

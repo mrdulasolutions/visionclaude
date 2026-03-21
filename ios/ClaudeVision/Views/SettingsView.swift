@@ -90,11 +90,23 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "eyeglasses")
                             .foregroundColor(.orange)
-                        Text(rayBanManager.glassesName)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(rayBanManager.glassesName)
+                            if activeFrameSource == .rayBan {
+                                Text("Stream: \(frameSourceStatus.label)")
+                                    .font(.caption)
+                                    .foregroundColor(frameSourceStatus.isConnected ? .green : .orange)
+                            }
+                        }
                         Spacer()
                         if rayBanManager.hasActiveDevice {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
+                            VStack(spacing: 2) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Paired")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
                         }
                     }
 
@@ -109,7 +121,7 @@ struct SettingsView: View {
                     }
 
                     if activeFrameSource == .rayBan && !frameSourceStatus.isConnected {
-                        Text("Glasses not connected. Follow the setup instructions to enable Developer Mode and pair your glasses.")
+                        Text("Glasses paired but stream not active. Make sure glasses are powered on with hinges open, and Developer Mode is enabled.")
                             .font(.caption)
                             .foregroundColor(.orange)
                     }

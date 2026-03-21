@@ -21,12 +21,20 @@ struct ContentView: View {
             VStack {
                 // Top bar
                 HStack {
-                    // Connection status
+                    // Connection + source status
                     HStack(spacing: 6) {
                         Circle()
                             .fill(viewModel.isConnected ? .green : .red)
                             .frame(width: 10, height: 10)
-                        Text(viewModel.isConnected ? "Connected" : "Disconnected")
+                        Text(viewModel.isConnected ? "Gateway OK" : "No Gateway")
+                            .font(.caption)
+                            .foregroundColor(.white)
+                        Text("•")
+                            .foregroundColor(.gray)
+                        Image(systemName: viewModel.activeFrameSource.icon)
+                            .font(.caption)
+                            .foregroundColor(frameSourceColor)
+                        Text(viewModel.frameSourceStatus.label)
                             .font(.caption)
                             .foregroundColor(.white)
                     }
@@ -236,22 +244,32 @@ struct ContentView: View {
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
-        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.videoGravity = .resizeAspectFill
-        view.layer.addSublayer(previewLayer)
-        context.coordinator.previewLayer = previewLayer
+    func makeUIView(context: Context) -> PreviewContainerView {
+        let view = PreviewContainerView()
+        view.previewLayer.session = session
+        view.previewLayer.videoGravity = .resizeAspectFill
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.previewLayer?.frame = uiView.bounds
+    func updateUIView(_ uiView: PreviewContainerView, context: Context) {
+        uiView.previewLayer.session = session
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    class PreviewContainerView: UIView {
+        let previewLayer = AVCaptureVideoPreviewLayer()
 
-    class Coordinator {
-        var previewLayer: AVCaptureVideoPreviewLayer?
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            layer.addSublayer(previewLayer)
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            previewLayer.frame = bounds
+        }
     }
 }

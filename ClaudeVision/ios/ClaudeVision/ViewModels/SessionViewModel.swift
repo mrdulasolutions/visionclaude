@@ -103,6 +103,17 @@ class SessionViewModel: ObservableObject {
     private func switchFrameSource() {
         cameraManager.stop()
         rayBanManager.stop()
+
+        // Re-route audio when switching sources
+        if activeFrameSource == .rayBan {
+            AudioSessionManager.shared.routeToBluetoothMicIfAvailable()
+            // Auto-start listening in glasses mode (hands-free)
+            if isConnected && !speechManager.isListening {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.startListening()
+                }
+            }
+        }
         startActiveFrameSource()
     }
 

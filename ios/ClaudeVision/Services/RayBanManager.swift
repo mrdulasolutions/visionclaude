@@ -4,39 +4,24 @@ import UIKit
 import MWDATCore
 import MWDATCamera
 
-// ═══════════════════════════════════════════════════════════════════════
-// RayBanManager — Meta Ray-Ban Smart Glasses via DAT SDK
-// ═══════════════════════════════════════════════════════════════════════
-//
-// Uses the official Meta Wearables Device Access Toolkit (DAT) SDK.
-// SPM: https://github.com/facebook/meta-wearables-dat-ios
-//
-// PREREQUISITES:
-//   1. Register at https://wearables.developer.meta.com
-//   2. Create an organization and project
-//   3. Add your app's bundle ID to the project
-//   4. Pair glasses via Meta View app on iPhone
-//   5. Enable Developer Mode in Meta View settings
-//
-// ═══════════════════════════════════════════════════════════════════════
-
 @MainActor
 class RayBanManager: NSObject, ObservableObject, FrameSource {
 
     // MARK: - FrameSource Protocol
 
     @Published var latestFrame: Data?
-    @Published var latestImage: UIImage? // For live preview display
+    @Published var latestImage: UIImage?
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var connectionStatus: FrameSourceStatus = .disconnected
     @Published var frameCount: Int = 0
 
     let sourceType: FrameSourceType = .rayBan
 
-    // MARK: - Ray-Ban State
+    // MARK: - State
 
     @Published var glassesName: String = "Not Connected"
     @Published var hasActiveDevice: Bool = false
+    @Published var registrationState: String = "unregistered"
     @Published var isRegistered: Bool = false
 
     // DAT SDK
@@ -46,6 +31,7 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     private var frameToken: AnyListenerToken?
     private var errorToken: AnyListenerToken?
     private var deviceMonitorTask: Task<Void, Never>?
+    private var registrationTask: Task<Void, Never>?
 
     private var frameInterval: TimeInterval = 1.0
     private var jpegQuality: CGFloat = 0.5
@@ -58,32 +44,58 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         self.jpegQuality = jpegQuality
     }
 
-    // MARK: - SDK Initialization
+    // MARK: - Registration (MUST complete before streaming)
 
-    /// Call once at app launch (before start)
-    func initializeSDK() {
-        do {
-            try Wearables.configure()
-        } catch {
-            connectionStatus = .error("SDK config failed: \(error.localizedDescription)")
+    func startMonitoringRegistration() {
+        let wearables = Wearables.shared
+        registrationTask = Task { @MainActor in
+            for await state in wearables.registrationStateStream() {
+                switch state {
+                case .registered:
+                    self.registrationState = "registered"
+                    self.isRegistered = true
+                    print("[RayBan] Registration complete")
+                case .registering:
+                    self.registrationState = "registering"
+                    print("[RayBan] Registration in progress...")
+                case .available, .unavailable:
+                    self.registrationState = "unregistered"
+                    self.isRegistered = false
+                    print("[RayBan] Not registered")
+                @unknown default:
+                    break
+                }
+            }
+        }
+
+        // Check current state
+        let currentState = wearables.registrationState
+        switch currentState {
+        case .registered:
+            isRegistered = true
+            registrationState = "registered"
+        case .registering:
+            registrationState = "registering"
+        case .available, .unavailable:
+            registrationState = "unregistered"
+        @unknown default:
+            break
         }
     }
 
-    // MARK: - Registration (Pairing)
+    func register() async {
+        guard !isRegistered else {
+            print("[RayBan] Already registered")
+            return
+        }
 
-    func connectGlasses() async {
         do {
+            print("[RayBan] Starting registration with Meta AI...")
+            connectionStatus = .connecting
             try await Wearables.shared.startRegistration()
         } catch {
+            print("[RayBan] Registration error: \(error)")
             connectionStatus = .error("Registration failed: \(error.localizedDescription)")
-        }
-    }
-
-    func disconnectGlasses() async {
-        do {
-            try await Wearables.shared.startUnregistration()
-        } catch {
-            connectionStatus = .error("Disconnect failed: \(error.localizedDescription)")
         }
     }
 
@@ -91,13 +103,22 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
 
     func start() throws {
         guard !isRunning else { return }
+
+        guard isRegistered else {
+            print("[RayBan] Not registered — starting registration first")
+            connectionStatus = .error("Tap 'Connect Glasses' in Settings to register with Meta AI first")
+            Task { await register() }
+            return
+        }
+
         connectionStatus = .connecting
+        print("[RayBan] Starting stream session...")
 
         let wearables = Wearables.shared
         let selector = AutoDeviceSelector(wearables: wearables)
         self.deviceSelector = selector
 
-        // Stream at 24fps for smooth preview — we throttle JPEG capture for Claude separately
+        // Stream at 24fps for smooth preview
         let config = StreamSessionConfig(
             videoCodec: .raw,
             resolution: .low,
@@ -110,18 +131,21 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         deviceMonitorTask = Task { @MainActor in
             for await device in selector.activeDeviceStream() {
                 self.hasActiveDevice = device != nil
-                if let device {
+                if device != nil {
                     self.glassesName = "Ray-Ban Meta"
+                    print("[RayBan] Device active")
                 } else {
-                    self.glassesName = "Not Connected"
+                    self.glassesName = "No Device"
+                    print("[RayBan] No active device")
                 }
             }
         }
 
-        // Listen for state changes
+        // State changes
         stateToken = session.statePublisher.listen { [weak self] (state: StreamSessionState) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                print("[RayBan] State: \(state)")
                 switch state {
                 case .streaming:
                     self.isRunning = true
@@ -129,8 +153,13 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
                 case .stopped:
                     self.isRunning = false
                     self.connectionStatus = .disconnected
-                    self.latestFrame = nil
-                case .waitingForDevice, .starting, .stopping, .paused:
+                case .waitingForDevice:
+                    self.connectionStatus = .connecting
+                case .starting:
+                    self.connectionStatus = .connecting
+                case .stopping:
+                    self.connectionStatus = .connecting
+                case .paused:
                     self.connectionStatus = .connecting
                 @unknown default:
                     break
@@ -138,58 +167,69 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
             }
         }
 
-        // Listen for video frames — update preview on every frame, throttle JPEG for Claude
+        // Video frames
         frameToken = session.videoFramePublisher.listen { [weak self] (videoFrame: VideoFrame) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
                 guard let uiImage = videoFrame.makeUIImage() else { return }
 
-                // Always update preview image for smooth display
+                // Always update preview
                 self.latestImage = uiImage
                 self.frameCount += 1
 
-                // Throttle JPEG capture for Claude (every frameInterval seconds)
+                // Throttle JPEG for Claude
                 let now = Date()
                 if now.timeIntervalSince(self.lastCaptureTime) >= self.frameInterval {
                     self.lastCaptureTime = now
                     if let jpegData = uiImage.jpegData(compressionQuality: self.jpegQuality) {
                         self.latestFrame = jpegData
+                        print("[RayBan] Captured JPEG frame (\(jpegData.count) bytes)")
                     }
                 }
             }
         }
 
-        // Listen for errors
+        // Errors
         errorToken = session.errorPublisher.listen { [weak self] (error: StreamSessionError) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.connectionStatus = .error(self.formatError(error))
+                let msg = self.formatError(error)
+                print("[RayBan] Error: \(msg)")
+                self.connectionStatus = .error(msg)
             }
         }
 
-        // Request camera permission and start
+        // Request camera permission THEN start
         Task {
             do {
+                let wearables = Wearables.shared
+                print("[RayBan] Checking camera permission...")
                 let status = try await wearables.checkPermissionStatus(.camera)
-                if status != .granted {
-                    let result = try await wearables.requestPermission(.camera)
-                    guard result == .granted else {
-                        self.connectionStatus = .error("Camera permission denied")
-                        return
-                    }
+                if status == .granted {
+                    print("[RayBan] Camera permission already granted")
+                    await session.start()
+                    return
                 }
-                await session.start()
+
+                print("[RayBan] Requesting camera permission...")
+                let result = try await wearables.requestPermission(.camera)
+                if result == .granted {
+                    print("[RayBan] Camera permission granted")
+                    await session.start()
+                } else {
+                    print("[RayBan] Camera permission denied")
+                    self.connectionStatus = .error("Camera permission denied. Grant in Meta AI app.")
+                }
             } catch {
+                print("[RayBan] Permission error: \(error)")
                 self.connectionStatus = .error("Permission error: \(error.localizedDescription)")
             }
         }
     }
 
     func stop() {
-        Task {
-            await streamSession?.stop()
-        }
+        Task { await streamSession?.stop() }
         stateToken = nil
         frameToken = nil
         errorToken = nil
@@ -200,62 +240,34 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         isRunning = false
         connectionStatus = .disconnected
         latestFrame = nil
+        latestImage = nil
         glassesName = "Not Connected"
         hasActiveDevice = false
     }
 
     func consumeFrame() -> Data? {
-        // Keep the frame available for preview — don't nil it
-        let frame = latestFrame
-        if frame != nil {
-            print("[RayBan] Consuming frame (\(frame!.count) bytes)")
-        } else {
-            print("[RayBan] No frame available to consume")
-        }
-        return frame
+        return latestFrame
+    }
+
+    func cleanup() {
+        stop()
+        registrationTask?.cancel()
+        registrationTask = nil
     }
 
     // MARK: - Error Formatting
 
     private func formatError(_ error: StreamSessionError) -> String {
         switch error {
-        case .deviceNotFound:
-            return "Glasses not found. Make sure they're powered on and paired."
-        case .deviceNotConnected:
-            return "Glasses disconnected. Check Bluetooth connection."
-        case .permissionDenied:
-            return "Camera permission denied. Grant access in Settings."
-        case .hingesClosed:
-            return "Glasses hinges are closed. Open them to stream."
-        case .thermalCritical:
-            return "Glasses overheating. Streaming paused."
-        case .timeout:
-            return "Connection timed out. Try again."
-        case .videoStreamingError:
-            return "Video stream failed. Try restarting."
-        case .internalError:
-            return "Internal SDK error. Try restarting the app."
-        @unknown default:
-            return "Unknown glasses error."
+        case .deviceNotFound: return "Glasses not found. Power on and open hinges."
+        case .deviceNotConnected: return "Glasses disconnected. Check Bluetooth."
+        case .permissionDenied: return "Camera permission denied. Grant in Meta AI app Settings."
+        case .hingesClosed: return "Open the glasses hinges to stream."
+        case .thermalCritical: return "Glasses overheating. Streaming paused."
+        case .timeout: return "Connection timed out. Try again."
+        case .videoStreamingError: return "Video stream failed. Restart app."
+        case .internalError: return "Internal SDK error. Restart app."
+        @unknown default: return "Unknown glasses error."
         }
-    }
-
-    // MARK: - Pairing Instructions
-
-    func showPairingInstructions() -> String {
-        return """
-        To connect your Meta Ray-Ban glasses:
-
-        1. Register at wearables.developer.meta.com
-        2. Install the Meta View app from the App Store
-        3. Open Meta View and sign in with your Meta account
-        4. Pair your glasses via Bluetooth
-        5. Enable Developer Mode:
-           • Meta View → Settings → your glasses → Developer Mode → ON
-        6. Restart your glasses:
-           • Hold the button for 15 seconds to power off
-           • Press the button to power back on
-        7. Return to ClaudeVision and select "Meta Ray-Ban" as your camera source
-        """
     }
 }

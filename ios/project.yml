@@ -9,6 +9,9 @@ packages:
   meta-wearables-dat-ios:
     url: https://github.com/facebook/meta-wearables-dat-ios
     from: "0.5.0"
+  ElevenLabsKit:
+    url: https://github.com/steipete/ElevenLabsKit
+    from: "0.1.0"
 
 targets:
   ClaudeVision:
@@ -21,6 +24,8 @@ targets:
         product: MWDATCore
       - package: meta-wearables-dat-ios
         product: MWDATCamera
+      - package: ElevenLabsKit
+        product: ElevenLabsKit
     settings:
       base:
         INFOPLIST_FILE: ClaudeVision/Info.plist

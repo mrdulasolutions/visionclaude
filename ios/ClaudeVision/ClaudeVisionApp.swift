@@ -4,11 +4,11 @@ import MWDATCore
 @main
 struct ClaudeVisionApp: App {
     init() {
-        // Initialize Meta Wearables DAT SDK
         do {
             try Wearables.configure()
+            print("[App] DAT SDK configured")
         } catch {
-            print("[ClaudeVision] DAT SDK configuration failed: \(error)")
+            print("[App] DAT SDK configuration failed: \(error)")
         }
     }
 
@@ -17,9 +17,21 @@ struct ClaudeVisionApp: App {
             ContentView()
                 .preferredColorScheme(.dark)
                 .onOpenURL { url in
-                    // Handle Meta AI app callback after registration
+                    // Handle Meta AI callback after registration/permission
+                    guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                          components.queryItems?.contains(where: { $0.name == "metaWearablesAction" }) == true
+                    else {
+                        return // Not a DAT SDK callback
+                    }
+
+                    print("[App] Received DAT SDK callback: \(url)")
                     Task {
-                        _ = try? await Wearables.shared.handleUrl(url)
+                        do {
+                            _ = try await Wearables.shared.handleUrl(url)
+                            print("[App] DAT SDK URL handled successfully")
+                        } catch {
+                            print("[App] DAT SDK URL error: \(error)")
+                        }
                     }
                 }
         }

@@ -24,6 +24,7 @@
 		9864E1522823865D7292FA82 /* ClaudeVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80B4A559F7D180D8DCE6033 /* ClaudeVisionApp.swift */; };
 		A2C392605B594915241F310C /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485A5E24F72ECE1BCAB326AD /* ChatModels.swift */; };
 		C7D9F412F3607F657FC2F90A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D88A83F09D5107BD2F91B6 /* ContentView.swift */; };
+		E879366ACD1ABFC67F520778 /* ElevenLabsKit in Frameworks */ = {isa = PBXBuildFile; productRef = EA1B963127A4A06BC2915516 /* ElevenLabsKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 			files = (
 				0B0D43D05DD7AA9061DBBC52 /* MWDATCore in Frameworks */,
 				26DF4D6AB4300A244E2F9993 /* MWDATCamera in Frameworks */,
+				E879366ACD1ABFC67F520778 /* ElevenLabsKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -157,6 +159,7 @@
 			packageProductDependencies = (
 				56D471E4C1D0316E974B9E9D /* MWDATCore */,
 				F89EE55D2F5EFD824C5EAAA1 /* MWDATCamera */,
+				EA1B963127A4A06BC2915516 /* ElevenLabsKit */,
 			);
 			productName = ClaudeVision;
 			productReference = 98E55A0878E3210165D23655 /* ClaudeVision.app */;
@@ -186,6 +189,7 @@
 			mainGroup = 1AC8D3445CECE9610F600843;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				692A9315E46A6BBD2ABB62BD /* XCRemoteSwiftPackageReference "ElevenLabsKit" */,
 				361638BCA9B14020698AECCB /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -427,6 +431,14 @@
 				minimumVersion = 0.5.0;
 			};
 		};
+		692A9315E46A6BBD2ABB62BD /* XCRemoteSwiftPackageReference "ElevenLabsKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/steipete/ElevenLabsKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -434,6 +446,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 361638BCA9B14020698AECCB /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
 			productName = MWDATCore;
+		};
+		EA1B963127A4A06BC2915516 /* ElevenLabsKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 692A9315E46A6BBD2ABB62BD /* XCRemoteSwiftPackageReference "ElevenLabsKit" */;
+			productName = ElevenLabsKit;
 		};
 		F89EE55D2F5EFD824C5EAAA1 /* MWDATCamera */ = {
 			isa = XCSwiftPackageProductDependency;

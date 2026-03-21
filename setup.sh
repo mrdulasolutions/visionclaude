@@ -278,6 +278,27 @@ PORT=18790
 EOF
 
     print_ok "API key saved to server/.env"
+
+    # ElevenLabs TTS (optional)
+    echo ""
+    echo -e "  ${ORANGE}Optional: ElevenLabs TTS${RESET}"
+    echo -e "  ${DIM}For natural-sounding voice responses (much better than Apple TTS)${RESET}"
+    echo -e "  ${DIM}Get a key at: ${CYAN}https://elevenlabs.io/app/settings/api-keys${RESET}"
+    echo ""
+
+    if prompt_confirm "Add an ElevenLabs API key for premium voice?"; then
+        local eleven_key
+        eleven_key=$(prompt_secret "Enter your ElevenLabs API key:")
+        if [[ -n "$eleven_key" ]]; then
+            print_ok "ElevenLabs key saved — enter it in the iOS app Settings → Voice"
+            print_dim "Default voice: Rachel (21m00Tcm4TlvDq8ikWAM)"
+            echo ""
+            echo -e "  ${DIM}To change the voice, browse voices at:${RESET}"
+            echo -e "  ${CYAN}https://elevenlabs.io/app/voice-library${RESET}"
+        fi
+    else
+        print_dim "Skipped — the app will use Apple's built-in TTS (can upgrade later in Settings)"
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════

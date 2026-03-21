@@ -7,6 +7,7 @@ struct SettingsView: View {
     let frameSourceStatus: FrameSourceStatus
     let rayBanManager: RayBanManager
     let onConnect: () -> Void
+    let onConnectGlasses: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var testResult: String?
     @State private var isTesting = false
@@ -110,6 +111,30 @@ struct SettingsView: View {
                         }
                     }
 
+                    // Registration status
+                    HStack {
+                        Text("Registration")
+                        Spacer()
+                        Text(rayBanManager.isRegistered ? "Registered" : "Not Registered")
+                            .foregroundColor(rayBanManager.isRegistered ? .green : .orange)
+                            .font(.caption)
+                    }
+
+                    if !rayBanManager.isRegistered {
+                        Button {
+                            onConnectGlasses()
+                        } label: {
+                            HStack {
+                                Image(systemName: "link.circle.fill")
+                                    .foregroundColor(.orange)
+                                Text("Connect Glasses via Meta AI")
+                                Spacer()
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.caption)
+                            }
+                        }
+                    }
+
                     Button {
                         showRayBanInstructions = true
                     } label: {
@@ -121,19 +146,56 @@ struct SettingsView: View {
                     }
 
                     if activeFrameSource == .rayBan && !frameSourceStatus.isConnected {
-                        Text("Glasses paired but stream not active. Make sure glasses are powered on with hinges open, and Developer Mode is enabled.")
-                            .font(.caption)
-                            .foregroundColor(.orange)
+                        if !rayBanManager.isRegistered {
+                            Text("Tap 'Connect Glasses via Meta AI' above to register. This will open the Meta AI app for approval.")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        } else {
+                            Text("Registered but stream not active. Make sure glasses are powered on with hinges open, and Developer Mode is enabled.")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
                     }
                 }
 
-                Section("Speech") {
+                Section("Voice") {
                     HStack {
                         Text("Pause Threshold")
                         Spacer()
                         Text("\(config.speechPauseThreshold, specifier: "%.1f")s")
                     }
                     Slider(value: $config.speechPauseThreshold, in: 0.5...3.0, step: 0.5)
+
+                    HStack {
+                        Image(systemName: "speaker.wave.3")
+                            .foregroundColor(.orange)
+                        Text("TTS Provider")
+                        Spacer()
+                        Text(config.elevenLabsAPIKey.isEmpty ? "Apple (Basic)" : "ElevenLabs")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+
+                    HStack {
+                        Text("ElevenLabs Key")
+                        Spacer()
+                        SecureField("API key", text: $config.elevenLabsAPIKey)
+                            .multilineTextAlignment(.trailing)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+
+                    if !config.elevenLabsAPIKey.isEmpty {
+                        HStack {
+                            Text("Voice ID")
+                            Spacer()
+                            TextField("Voice ID", text: $config.elevenLabsVoiceId)
+                                .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .font(.caption)
+                        }
+                    }
                 }
 
                 Section {

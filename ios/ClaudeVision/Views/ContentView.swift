@@ -129,10 +129,10 @@ struct ContentView: View {
                 activeFrameSource: $viewModel.activeFrameSource,
                 isConnected: viewModel.isConnected,
                 frameSourceStatus: viewModel.frameSourceStatus,
-                rayBanManager: viewModel.rayBanManager
-            ) {
-                Task { await viewModel.connect() }
-            }
+                rayBanManager: viewModel.rayBanManager,
+                onConnect: { Task { await viewModel.connect() } },
+                onConnectGlasses: { Task { await viewModel.connectGlasses() } }
+            )
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.transcript.count)
         .animation(.easeInOut(duration: 0.2), value: viewModel.state)

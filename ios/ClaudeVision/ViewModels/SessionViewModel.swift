@@ -38,6 +38,15 @@ class SessionViewModel: ObservableObject {
         self.config = config
         self.bridge = ClaudeBridge(config: config)
         setupBindings()
+        rayBanManager.startMonitoringRegistration()
+        speechManager.configureElevenLabs(
+            apiKey: config.elevenLabsAPIKey,
+            voiceId: config.elevenLabsVoiceId
+        )
+    }
+
+    func connectGlasses() async {
+        await rayBanManager.register()
     }
 
     private func setupBindings() {

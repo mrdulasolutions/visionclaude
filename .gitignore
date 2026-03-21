@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Build output
+server/dist/
+ios/build/
+ios/DerivedData/
+
+# Environment (contains API key!)
+server/.env
+.env
+
+# Xcode
+ios/ClaudeVision.xcodeproj/project.xcworkspace/
+ios/ClaudeVision.xcodeproj/xcuserdata/
+ios/ClaudeVision.xcodeproj/xcshareddata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo

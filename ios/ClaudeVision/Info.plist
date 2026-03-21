@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>ClaudeVision needs camera access to capture frames for Claude's visual analysis.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ClaudeVision needs microphone access for voice conversations with Claude.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ClaudeVision uses speech recognition to transcribe your voice for Claude.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ClaudeVision connects to the Claude Gateway server on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
+</dict>
+</plist>

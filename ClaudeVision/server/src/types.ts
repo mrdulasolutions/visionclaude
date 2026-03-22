@@ -36,9 +36,13 @@ export interface ServerConfig {
 // ── MCP ──
 
 export interface MCPServerConfig {
-  command: string;
+  // Local stdio server
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
+  // Remote HTTP/SSE server
+  url?: string;
+  headers?: Record<string, string>;
 }
 
 export interface MCPConfigFile {

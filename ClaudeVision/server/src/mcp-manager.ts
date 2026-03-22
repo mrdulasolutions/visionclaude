@@ -1,8 +1,11 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { readFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
+import { c } from "./console-theme.js";
 import type {
   MCPServerConfig,
   ClaudeDesktopConfig,
@@ -13,8 +16,8 @@ import type {
 interface ConnectedServer {
   name: string;
   client: Client;
-  transport: StdioClientTransport;
   tools: DiscoveredTool[];
+  type: "stdio" | "remote";
 }
 
 export class MCPManager {
@@ -26,11 +29,13 @@ export class MCPManager {
     const serverEntries = Object.entries(config);
 
     if (serverEntries.length === 0) {
-      console.log("[MCP] No MCP servers configured");
+      console.log(c.label("[MCP]") + c.dim(" No MCP servers configured"));
       return;
     }
 
-    console.log(`[MCP] Connecting to ${serverEntries.length} server(s)...`);
+    console.log(
+      c.label("[MCP]") + ` Connecting to ${serverEntries.length} server(s)...`
+    );
 
     const results = await Promise.allSettled(
       serverEntries.map(([name, cfg]) => this.connectServer(name, cfg))
@@ -40,12 +45,17 @@ export class MCPManager {
       const result = results[i];
       const name = serverEntries[i][0];
       if (result.status === "rejected") {
-        console.error(`[MCP] Failed to connect to "${name}":`, result.reason);
+        console.error(
+          c.label("[MCP]") + c.error(` Failed to connect to "${name}": `) + result.reason
+        );
       }
     }
 
     console.log(
-      `[MCP] Connected to ${this.servers.size}/${serverEntries.length} servers, discovered ${this.toolToServer.size} tools`
+      c.label("[MCP]") +
+        c.success(
+          ` Connected to ${this.servers.size}/${serverEntries.length} servers, discovered ${this.toolToServer.size} tools`
+        )
     );
   }
 
@@ -75,7 +85,7 @@ export class MCPManager {
           parsed.mcpServers || {};
 
         if (Object.keys(servers).length > 0) {
-          console.log(`[MCP] Loaded config from ${path}`);
+          console.log(c.label("[MCP]") + ` Loaded config from ${path}`);
           return servers;
         }
       } catch {
@@ -83,7 +93,9 @@ export class MCPManager {
       }
     }
 
-    console.log("[MCP] No MCP config found at any default location");
+    console.log(
+      c.label("[MCP]") + c.dim(" No MCP config found at any default location")
+    );
     return {};
   }
 
@@ -91,18 +103,19 @@ export class MCPManager {
     name: string,
     config: MCPServerConfig
   ): Promise<void> {
-    const transport = new StdioClientTransport({
-      command: config.command,
-      args: config.args,
-      env: { ...process.env, ...config.env } as Record<string, string>,
-    });
-
     const client = new Client(
-      { name: "claude-gateway", version: "1.0.0" },
+      { name: "visionclaude-gateway", version: "1.0.0" },
       { capabilities: {} }
     );
 
-    await client.connect(transport);
+    // Determine transport type: remote URL or local stdio
+    if (config.url) {
+      await this.connectRemoteServer(name, config, client);
+    } else if (config.command) {
+      await this.connectStdioServer(name, config, client);
+    } else {
+      throw new Error(`Server "${name}" has no command or url configured`);
+    }
 
     // Discover tools
     const toolsResponse = await client.listTools();
@@ -114,16 +127,71 @@ export class MCPManager {
     }));
 
     // Register
-    const server: ConnectedServer = { name, client, transport, tools };
+    const isRemote = !!config.url;
+    const server: ConnectedServer = {
+      name,
+      client,
+      tools,
+      type: isRemote ? "remote" : "stdio",
+    };
     this.servers.set(name, server);
 
     for (const tool of tools) {
       this.toolToServer.set(tool.name, name);
     }
 
+    const typeLabel = isRemote ? c.cyan("[remote]") : c.dim("[local]");
     console.log(
-      `[MCP] "${name}" connected — ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}`
+      c.label("[MCP]") +
+        ` "${name}" ${typeLabel} connected — ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}`
     );
+  }
+
+  private async connectRemoteServer(
+    name: string,
+    config: MCPServerConfig,
+    client: Client
+  ): Promise<void> {
+    const url = new URL(config.url!);
+
+    // Build headers (auth tokens, etc.)
+    const headers: Record<string, string> = {};
+    if (config.headers) {
+      Object.assign(headers, config.headers);
+    }
+
+    // Try StreamableHTTP first (newer protocol), fall back to SSE
+    try {
+      const transport = new StreamableHTTPClientTransport(url, { requestInit: { headers } });
+      await client.connect(transport);
+      console.log(
+        c.label("[MCP]") + c.dim(` "${name}" using StreamableHTTP transport`)
+      );
+    } catch {
+      // Fall back to SSE transport
+      console.log(
+        c.label("[MCP]") + c.dim(` "${name}" StreamableHTTP failed, trying SSE...`)
+      );
+      const sseTransport = new SSEClientTransport(url, { requestInit: { headers } });
+      await client.connect(sseTransport);
+      console.log(
+        c.label("[MCP]") + c.dim(` "${name}" using SSE transport`)
+      );
+    }
+  }
+
+  private async connectStdioServer(
+    name: string,
+    config: MCPServerConfig,
+    client: Client
+  ): Promise<void> {
+    const transport = new StdioClientTransport({
+      command: config.command!,
+      args: config.args,
+      env: { ...process.env, ...config.env } as Record<string, string>,
+    });
+
+    await client.connect(transport);
   }
 
   async invokeTool(
@@ -140,7 +208,9 @@ export class MCPManager {
       throw new Error(`Server "${serverName}" not connected`);
     }
 
-    console.log(`[MCP] Invoking ${toolName} on "${serverName}"...`);
+    console.log(
+      c.label("[MCP]") + ` Invoking ${c.value(toolName)} on "${serverName}"...`
+    );
 
     const result = await server.client.callTool({
       name: toolName,
@@ -176,10 +246,11 @@ export class MCPManager {
     return Array.from(this.servers.keys());
   }
 
-  getServerStatus(): { name: string; toolCount: number }[] {
+  getServerStatus(): { name: string; toolCount: number; type: string }[] {
     return Array.from(this.servers.values()).map((s) => ({
       name: s.name,
       toolCount: s.tools.length,
+      type: s.type,
     }));
   }
 
@@ -203,13 +274,15 @@ export class MCPManager {
   }
 
   async shutdown(): Promise<void> {
-    console.log("[MCP] Shutting down all servers...");
+    console.log(c.label("[MCP]") + " Shutting down all servers...");
     for (const [name, server] of this.servers) {
       try {
         await server.client.close();
-        console.log(`[MCP] "${name}" disconnected`);
+        console.log(c.label("[MCP]") + c.dim(` "${name}" disconnected`));
       } catch (err) {
-        console.error(`[MCP] Error disconnecting "${name}":`, err);
+        console.error(
+          c.label("[MCP]") + c.error(` Error disconnecting "${name}": `) + err
+        );
       }
     }
     this.servers.clear();

@@ -57,7 +57,11 @@ cd visionclaude/ClaudeVision
 ./setup.sh
 ```
 
-The interactive setup walks you through everything with step-by-step guidance.
+The interactive setup walks you through everything with step-by-step guidance:
+
+<p align="center">
+<img src="docs/images/setup-screenshot.png" alt="VisionClaude Setup" width="500" />
+</p>
 
 ## Requirements
 

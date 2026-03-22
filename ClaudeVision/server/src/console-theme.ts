@@ -72,8 +72,6 @@ export function showServerInfo(
   toolCount: number,
   skillCount: number
 ): void {
-  const hostname =
-    process.env.HOSTNAME || require("os").hostname() || "localhost";
 
   console.log("");
   console.log(

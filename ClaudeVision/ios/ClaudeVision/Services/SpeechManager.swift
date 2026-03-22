@@ -189,6 +189,9 @@ class SpeechManager: NSObject, ObservableObject {
         if isSpeaking { stopSpeaking() }
         stopListening()
 
+        // Reset audio engine to pick up current route (iPhone mic vs Bluetooth)
+        audioEngine.reset()
+
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.addsPunctuation = true
@@ -200,9 +203,17 @@ class SpeechManager: NSObject, ObservableObject {
         recognitionRequest = request
 
         let inputNode = audioEngine.inputNode
+        // Use the node's ACTUAL output format — this adapts to whatever
+        // audio route is active (iPhone mic = 48kHz, Bluetooth HFP = 16kHz)
         let recordingFormat = inputNode.outputFormat(forBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+        // Guard against zero-channel format (happens during route transitions)
+        guard recordingFormat.channelCount > 0 else {
+            throw NSError(domain: "SpeechManager", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Audio input not ready — try again"])
+        }
+
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
         }
 

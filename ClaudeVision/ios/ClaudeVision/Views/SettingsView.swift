@@ -186,28 +186,20 @@ struct SettingsView: View {
                     }
 
                     if !config.elevenLabsAPIKey.isEmpty {
-                        // Voice picker — use Picker for reliable Form tap handling
+                        // Voice picker
+                        let selectedVoice = ElevenLabsVoice.voice(for: config.elevenLabsVoiceId)
                         Picker(selection: $config.elevenLabsVoiceId) {
                             ForEach(ElevenLabsVoice.allVoices) { voice in
-                                HStack(spacing: 10) {
-                                    Image(systemName: voice.icon)
-                                        .foregroundColor(.orange)
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text(voice.name)
-                                            .font(.subheadline)
-                                        Text("\(voice.description) · \(voice.gender)")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                .tag(voice.id)
+                                Text("\(voice.name) — \(voice.description)")
+                                    .tag(voice.id)
                             }
                         } label: {
-                            HStack {
-                                Image(systemName: "waveform")
-                                    .foregroundColor(.orange)
-                                Text("Voice")
-                            }
+                            Label("Voice: \(selectedVoice.name)", systemImage: "waveform")
+                                .foregroundColor(.orange)
+                        }
+                        .onChange(of: config.elevenLabsVoiceId) { _, newValue in
+                            let voice = ElevenLabsVoice.voice(for: newValue)
+                            print("[Settings] Voice changed to: \(voice.name)")
                         }
                     }
                 }

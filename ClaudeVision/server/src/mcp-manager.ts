@@ -103,16 +103,13 @@ export class MCPManager {
     name: string,
     config: MCPServerConfig
   ): Promise<void> {
-    const client = new Client(
-      { name: "visionclaude-gateway", version: "1.0.0" },
-      { capabilities: {} }
-    );
+    let client: Client;
 
     // Determine transport type: remote URL or local stdio
     if (config.url) {
-      await this.connectRemoteServer(name, config, client);
+      client = await this.connectRemoteServer(name, config);
     } else if (config.command) {
-      await this.connectStdioServer(name, config, client);
+      client = await this.connectStdioServer(name, config);
     } else {
       throw new Error(`Server "${name}" has no command or url configured`);
     }
@@ -149,9 +146,8 @@ export class MCPManager {
 
   private async connectRemoteServer(
     name: string,
-    config: MCPServerConfig,
-    client: Client
-  ): Promise<void> {
+    config: MCPServerConfig
+  ): Promise<Client> {
     const url = new URL(config.url!);
 
     // Build headers (auth tokens, etc.)
@@ -162,29 +158,58 @@ export class MCPManager {
 
     // Try StreamableHTTP first (newer protocol), fall back to SSE
     try {
-      const transport = new StreamableHTTPClientTransport(url, { requestInit: { headers } });
+      console.log(
+        c.label("[MCP]") + c.dim(` "${name}" trying StreamableHTTP → ${config.url}`)
+      );
+      const client = new Client(
+        { name: "visionclaude-gateway", version: "1.0.0" },
+        { capabilities: {} }
+      );
+      const transport = new StreamableHTTPClientTransport(url, {
+        requestInit: { headers },
+      });
       await client.connect(transport);
       console.log(
-        c.label("[MCP]") + c.dim(` "${name}" using StreamableHTTP transport`)
+        c.label("[MCP]") + c.success(` "${name}" connected via StreamableHTTP`)
       );
-    } catch {
-      // Fall back to SSE transport
+      return client;
+    } catch (httpErr: any) {
       console.log(
-        c.label("[MCP]") + c.dim(` "${name}" StreamableHTTP failed, trying SSE...`)
+        c.label("[MCP]") +
+          c.dim(` "${name}" StreamableHTTP failed (${httpErr?.message || httpErr}), trying SSE...`)
       );
-      const sseTransport = new SSEClientTransport(url, { requestInit: { headers } });
-      await client.connect(sseTransport);
-      console.log(
-        c.label("[MCP]") + c.dim(` "${name}" using SSE transport`)
-      );
+
+      try {
+        const client = new Client(
+          { name: "visionclaude-gateway", version: "1.0.0" },
+          { capabilities: {} }
+        );
+        const sseTransport = new SSEClientTransport(url, {
+          requestInit: { headers },
+        });
+        await client.connect(sseTransport);
+        console.log(
+          c.label("[MCP]") + c.success(` "${name}" connected via SSE`)
+        );
+        return client;
+      } catch (sseErr: any) {
+        throw new Error(
+          `Both transports failed for "${name}":\n` +
+            `  StreamableHTTP: ${httpErr?.message || httpErr}\n` +
+            `  SSE: ${sseErr?.message || sseErr}`
+        );
+      }
     }
   }
 
   private async connectStdioServer(
     name: string,
-    config: MCPServerConfig,
-    client: Client
-  ): Promise<void> {
+    config: MCPServerConfig
+  ): Promise<Client> {
+    const client = new Client(
+      { name: "visionclaude-gateway", version: "1.0.0" },
+      { capabilities: {} }
+    );
     const transport = new StdioClientTransport({
       command: config.command!,
       args: config.args,
@@ -192,6 +217,7 @@ export class MCPManager {
     });
 
     await client.connect(transport);
+    return client;
   }
 
   async invokeTool(

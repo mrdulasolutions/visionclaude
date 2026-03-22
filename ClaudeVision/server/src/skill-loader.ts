@@ -10,30 +10,25 @@ export interface Skill {
   filePath: string;
 }
 
+const HOME = process.env.HOME || "~";
+
 const SKILL_SEARCH_PATHS = [
-  // VisionClaude's own skills directory
+  // ── VisionClaude's own skills ──
   path.join(process.cwd(), "..", "skills"),
   path.join(process.cwd(), "skills"),
-  // Claude Code plugins
-  path.join(
-    process.env.HOME || "~",
-    ".claude",
-    "plugins",
-    "marketplaces",
-    "claude-plugins-official",
-    "plugins"
-  ),
-  // Claude Code external plugins
-  path.join(
-    process.env.HOME || "~",
-    ".claude",
-    "plugins",
-    "marketplaces",
-    "claude-plugins-official",
-    "external_plugins"
-  ),
-  // User's scheduled tasks
-  path.join(process.env.HOME || "~", ".claude", "scheduled-tasks"),
+
+  // ── Claude Code / Desktop plugins ──
+  path.join(HOME, ".claude", "plugins", "marketplaces", "claude-plugins-official", "plugins"),
+  path.join(HOME, ".claude", "plugins", "marketplaces", "claude-plugins-official", "external_plugins"),
+
+  // ── Claude scheduled tasks ──
+  path.join(HOME, ".claude", "scheduled-tasks"),
+
+  // ── User's Desktop repos (where custom skills live) ──
+  path.join(HOME, "Desktop", "Claude Repo"),
+  path.join(HOME, "Desktop", "Cursor Repo"),
+  path.join(HOME, "Desktop", "ExChek Client Repos"),
+  path.join(HOME, "Desktop", "Agentpaytest"),
 ];
 
 /**

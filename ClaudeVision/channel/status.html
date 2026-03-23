@@ -183,7 +183,7 @@ function sendSMS(phone,message,statusEl){
   var s=document.getElementById(statusEl);
   s.textContent='Sending via iMessage...';s.style.color='#E87B35';
   fetch('/send-sms',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({phone:phone,message:message})})
-  .then(r=>r.json()).then(d=>{if(d.ok){s.textContent='✅ Sent via iMessage!';s.style.color='#4ade80';loadActivity()}else{s.textContent='❌ '+(d.error||'Failed');s.style.color='#f87171'}})
+  .then(r=>r.json()).then(d=>{if(d.ok){s.textContent='✅ Sent via iMessage!';s.style.color='#4ade80'}else{s.textContent='❌ '+(d.error||'Failed');s.style.color='#f87171'}})
   .catch(e=>{s.textContent='❌ '+e.message;s.style.color='#f87171'});
   setTimeout(()=>{s.textContent=''},5000)
 }

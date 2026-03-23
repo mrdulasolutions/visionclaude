@@ -415,7 +415,7 @@ Bun.serve({
         const proc = Bun.spawn(['osascript', '-e', script], { stderr: 'pipe', stdout: 'pipe' })
         const exitCode = await proc.exited
         if (exitCode === 0) {
-          logActivity({ ts: new Date().toISOString(), direction: 'out', source: 'imessage', text: `→ ${phone}: ${body.message.slice(0, 60)}` })
+          logActivity({ ts: new Date().toISOString(), direction: 'out', source: 'imessage', text: `→ ${recipient}: ${body.message.slice(0, 60)}` })
           return Response.json({ ok: true, method: 'imessage' })
         } else {
           const stderr = await new Response(proc.stderr).text()

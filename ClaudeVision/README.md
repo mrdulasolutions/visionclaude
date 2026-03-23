@@ -22,21 +22,15 @@
 </p>
 
 <p align="center">
+<img src="https://img.shields.io/badge/Channel_Mode-Claude_Code_Direct-FF9500?style=flat-square&logo=anthropic&logoColor=white" />
 <img src="https://img.shields.io/badge/iPhone-1080p_@_30fps-FF9500?style=flat-square&logo=apple&logoColor=white" />
 <img src="https://img.shields.io/badge/Ray--Ban_Meta-720p_@_30fps-FF9500?style=flat-square&logo=meta&logoColor=white" />
 <img src="https://img.shields.io/badge/TTS-ElevenLabs_Flash-FF9500?style=flat-square" />
-<img src="https://img.shields.io/badge/API-Claude_Sonnet-FF9500?style=flat-square&logo=anthropic&logoColor=white" />
 </p>
 
 ---
 
-**VisionClaude** turns your iPhone or Meta Ray-Ban Smart Glasses into Claude's eyes and ears. Point your camera, speak naturally, and Claude sees what you see — then responds with voice, using your connected tools and skills.
-
-## How It Works
-
-VisionClaude has **two modes**: Channel Mode (recommended) connects directly to your Claude Code session. Gateway Mode runs a standalone server.
-
-### Channel Mode (Direct Claude Code Integration)
+**VisionClaude** turns your iPhone or Meta Ray-Ban Smart Glasses into Claude's eyes and ears. Your phone connects directly to your Claude Code session — speak naturally, and Claude sees what you see, responds with voice, and uses ALL your MCP tools and skills.
 
 ```
 iPhone/Glasses  ──→  Channel Plugin  ──→  Claude Code (Opus)
@@ -45,24 +39,20 @@ iPhone/Glasses  ──→  Channel Plugin  ──→  Claude Code (Opus)
                                           Full Cowork session
 ```
 
-### Gateway Mode (Standalone)
+## Quick Start (5 minutes)
 
-```
-iPhone (1080p)  ╲
-  or             → Gateway Server → Claude API
-Ray-Ban (720p)  ╱   (your Mac)    → MCP Tools + Skills
-Your Voice      →                 ← (email, calendar, etc.)
-ElevenLabs TTS  ←   Claude Reply
-```
+### What You Need
 
-1. **You speak** — on-device speech recognition (or Ray-Ban mic via Bluetooth)
-2. **Camera captures** — 1080p iPhone or 720p Ray-Ban frame as high-quality JPEG
-3. **Gateway sends** — text + image to Claude with your skills injected
-4. **Claude responds** — with accurate vision analysis + tool actions
-5. **You hear** — ElevenLabs Flash TTS reads the response (10 voice options)
-6. **Loop repeats** — continuous hands-free conversation
+| Requirement | How to Get It |
+|---|---|
+| macOS 13+ | You probably have this |
+| Node.js 18+ | `brew install node` |
+| Bun | `curl -fsSL https://bun.sh/install \| bash` |
+| Xcode 15+ | Mac App Store |
+| iPhone (iOS 17+) | Physical device, USB cable |
+| Claude Code CLI | `npm install -g @anthropic-ai/claude-code` |
 
-## Quick Start
+### Step 1: Clone and Setup
 
 ```bash
 git clone https://github.com/mrdulasolutions/visionclaude.git
@@ -70,91 +60,96 @@ cd visionclaude/ClaudeVision
 ./setup.sh
 ```
 
-The interactive setup walks you through everything with step-by-step guidance:
+The interactive installer handles dependencies, API keys, and Xcode project generation:
 
 <p align="center">
 <img src="ClaudeVision/docs/images/setup-screenshot.png" alt="VisionClaude Setup" width="500" />
 </p>
 
-## Requirements
+### Step 2: Start the Channel
 
-| Requirement | Version |
-|---|---|
-| macOS | 13+ |
-| Node.js | 18+ |
-| Xcode | 15+ (for iOS app) |
-| iPhone | iOS 17+ (physical device, not Simulator) |
-| Anthropic API Key | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
-| ElevenLabs Key | Optional — [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) |
-
-## Channel Mode (Recommended)
-
-Channel Mode connects your phone directly to your running Claude Code session — no separate API key, no gateway server. Your phone becomes a camera/mic/speaker for Claude Code with access to ALL your MCP tools and skills.
-
-### Setup
-
-**1. Install Claude Code CLI** (if not already):
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-**2. Add the VisionClaude MCP server** to your project's `.mcp.json`:
+Add VisionClaude as an MCP server in your project's `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "visionclaude": {
       "command": "bun",
-      "args": ["run", "--cwd", "/path/to/visionclaude/ClaudeVision/channel", "--shell=bun", "--silent", "start"]
+      "args": ["run", "/path/to/visionclaude/ClaudeVision/channel/server.ts"]
     }
   }
 }
 ```
 
-**3. Launch Claude Code with the channel:**
+Then launch Claude Code with the channel enabled:
 
 ```bash
 claude --dangerously-load-development-channels "server:visionclaude"
 ```
 
-You'll see:
-```
-Listening for channel messages from: server:visionclaude
-[visionclaude] 🔐 Channel Token: a3f7b2c9e1d4f6a8...
-[visionclaude]    Enter this token in iOS app → Settings → Channel Token
-```
+### Step 3: Get Your Token
 
-**4. Get your Mac's local IP:**
+Open the dashboard in your browser:
 
-```bash
-ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}'
+```
+http://localhost:18790
 ```
 
-**5. In the iOS app** → Settings:
-- **Gateway Host** → your Mac's IP (e.g. `192.168.1.233`)
-- **Port** → `18790`
-- **Channel Token** → paste the token from step 3
+You'll see your **Channel Token**, your **Mac's IP address**, and copy buttons for both. The dashboard also lets you send messages to your phone, configure ElevenLabs TTS, and monitor activity.
+
+### Step 4: Connect Your Phone
+
+Open the VisionClaude app on your iPhone, go to **Settings**, and enter:
+
+| Setting | Value |
+|---|---|
+| **Host** | Your Mac's IP (shown on dashboard) |
+| **Port** | `18790` |
+| **Channel Token** | Copy from dashboard |
+
+Tap **Connect**. You should see a green status indicator — you're now talking directly to your Claude Code session.
+
+### Step 5: Start Talking
+
+Point your camera at something and say *"What am I looking at?"* — Claude describes it. Say *"Email this to my team"* — Claude uses your email MCP tool. Every tool and skill in your Cowork session is available through voice.
+
+---
+
+## Features
+
+### Vision
+- **iPhone camera** — 1920x1080 (1080p) @ 30fps, continuous autofocus
+- **Meta Ray-Ban glasses** — 1280x720 (720p) @ 30fps via DAT SDK
+- High-performance `CADisplayLink` renderer (smooth video, not snapshots)
+- 85% JPEG quality for accurate text/brand/object identification
+
+### Voice
+- **STT**: Apple Speech Recognition (on-device, privacy-first)
+- **TTS**: ElevenLabs Flash v2.5 with 10 selectable voices, or Apple TTS fallback
+- Tap-to-interrupt: stop Claude mid-sentence
+- Bluetooth mic routing for hands-free glasses operation
+- Configurable from the web dashboard or iOS app settings
+
+### Channel Dashboard (http://localhost:18790)
+- Retro terminal UI with live status monitoring
+- Auto-detects and displays your Mac's IP
+- One-click copy for token, IP, and all settings
+- Send messages to your phone from your Mac
+- Configure ElevenLabs API key directly
+- Activity log showing all inbound/outbound messages
+- Live client connection count
 
 ### Security
-
-Channel Mode uses a shared secret token for authentication:
-
-- **Auto-generated** on first run (32-char hex, saved to `~/.claude/channels/visionclaude/.channel-token`)
-- **Required** for WebSocket, upload, message, and file endpoints
-- **Health check** remains public (just returns status)
-- **Override** with `VISIONCLAUDE_TOKEN=your-custom-token` env var
-
-Without the token, connections are rejected with `401 Unauthorized`.
+- **Shared secret token** — auto-generated, required for all connections
+- Token stored at `~/.claude/channels/visionclaude/.channel-token` (owner-only permissions)
+- Health endpoint is public; everything else requires auth
+- Override with `VISIONCLAUDE_TOKEN=your-custom-token` env var
 
 ### Auto-Approve Permissions
 
-By default, Claude Code prompts for approval on every action triggered from the phone. To enable hands-free operation:
+By default, Claude Code prompts for approval on every action from the phone. Choose your comfort level:
 
-**Option 1: Auto-approve channel replies only** (safest)
-
-Add to your `.claude/settings.local.json`:
-
+**Replies only** (safest) — add to `.claude/settings.local.json`:
 ```json
 {
   "permissions": {
@@ -167,259 +162,83 @@ Add to your `.claude/settings.local.json`:
 }
 ```
 
-**Option 2: Auto-approve all VisionClaude tools** (convenient)
-
+**All VisionClaude tools** (convenient):
 ```bash
 claude --dangerously-load-development-channels "server:visionclaude" \
   --allowedTools "mcp__visionclaude__*"
 ```
 
-**Option 3: Full hands-free mode** (use with care)
-
+**Full hands-free** (use with care — skips ALL prompts):
 ```bash
 claude --dangerously-load-development-channels "server:visionclaude" \
   -p bypassPermissions
 ```
 
-This skips ALL permission prompts — Claude can use any tool (email, file system, etc.) without asking. Only use this when you trust the environment.
-
 ---
 
-## Features
+## Gateway Mode (Alternative)
 
-### Vision
-- **iPhone camera** at 1920×1080 (1080p) @ 30fps with continuous autofocus
-- **Meta Ray-Ban glasses** at 1280×720 (720p) @ 30fps via DAT SDK
-- High-performance `CADisplayLink` video renderer (smooth live feed, not snapshots)
-- 85% JPEG quality for accurate text reading and object identification
-
-### Voice
-- **STT**: Apple Speech Recognition (on-device, privacy-first)
-- **TTS**: ElevenLabs Flash v2.5 (low-latency streaming) with 10 selectable voices
-- Fallback to Apple TTS when no ElevenLabs key configured
-- Hands-free mode: auto-starts listening when using Ray-Ban glasses
-- Tap-to-interrupt: stop Claude mid-sentence by tapping the mic button
-- Bluetooth mic routing for Ray-Ban glasses (HFP)
-
-### Skills (Auto-Discovered)
-The gateway scans for `SKILL.md` files across your system:
-
-| Path | What's Found |
-|---|---|
-| `server/skills/` | VisionClaude built-in skills |
-| `~/.claude/plugins/` | Claude Code marketplace plugins |
-| `~/Desktop/Claude Repo/` | Your Claude project skills |
-| `~/Desktop/Cursor Repo/` | Your Cursor project skills |
-| `~/Desktop/ExChek Client Repos/` | ExChek compliance skills |
-
-Skills are injected into Claude's system prompt automatically. Hot-reload anytime:
+If you don't use Claude Code, the standalone gateway server works with just an Anthropic API key:
 
 ```bash
-curl -X POST http://localhost:18790/skills/reload
+cd ClaudeVision/server
+cp .env.example .env        # Add your ANTHROPIC_API_KEY
+npm install && npm run build && npm start
 ```
 
-### MCP Tools (Auto-Discovered)
-Reads your Claude Desktop config and connects to the same MCP servers:
+Gateway Mode auto-discovers MCP servers from your Claude Desktop config and skills from your local repos. It uses the Claude API directly instead of going through Claude Code.
 
-```
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
+### Adding MCP Servers (Gateway Mode)
 
-Add servers in Claude Desktop → restart the gateway → they appear in VisionClaude.
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-```
-Claude Desktop  ──→  MCP servers (email, calendar, etc.)
-                         ↑
-VisionClaude    ──→  Gateway Server ──→ same MCP servers
-(your phone)         (your Mac)
-```
-
-### Adding MCP Servers
-
-VisionClaude supports both **local** and **remote** MCP servers. Edit your Claude Desktop config to add them:
-
-```bash
-# Open the config file
-nano ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
-
-**Local MCP server** — runs a command on your Mac:
-
+**Local server:**
 ```json
 {
   "mcpServers": {
     "slack": {
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-slack"],
-      "env": {
-        "SLACK_BOT_TOKEN": "xoxb-your-token"
-      }
-    },
-    "google-calendar": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-google-calendar"],
-      "env": {
-        "GOOGLE_CLIENT_ID": "your-client-id",
-        "GOOGLE_CLIENT_SECRET": "your-secret"
-      }
+      "env": { "SLACK_BOT_TOKEN": "xoxb-your-token" }
     }
   }
 }
 ```
 
-**Remote MCP server** — connects to an HTTP/SSE endpoint:
-
+**Remote server:**
 ```json
 {
   "mcpServers": {
     "paysponge": {
       "url": "https://api.wallet.paysponge.com/mcp",
-      "headers": {
-        "Authorization": "Bearer your-api-key"
-      }
-    },
-    "my-custom-api": {
-      "url": "https://my-server.com/mcp"
+      "headers": { "Authorization": "Bearer your-api-key" }
     }
   }
 }
 ```
 
-**After adding servers**, restart the gateway:
+Restart the gateway after changes: `lsof -ti:18790 | xargs kill -9 && npm start`
 
-```bash
-# Kill and restart
-lsof -ti:18790 | xargs kill -9
-cd ClaudeVision/server && npm start
-```
-
-The gateway auto-detects the transport — StreamableHTTP first, SSE fallback for remote servers. Local servers use stdio. Check what connected:
-
-```bash
-curl http://localhost:18790/health | python3 -m json.tool
-curl http://localhost:18790/tools | python3 -m json.tool
-```
-
-### Combining Skills + MCP Tools
-
-Skills become powerful when paired with MCP tools. For example:
-
-| Voice Command | Skill Used | MCP Tool Called |
-|---|---|---|
-| "Read this business card and email them" | vision-describe | hostinger-email → send_email |
-| "Check my PaySponge balance" | — | paysponge → get_balance |
-| "What's on my calendar today?" | — | google-calendar → list_events |
-| "Classify this product for export" | exchek-classify | — (skill instructions only) |
-| "Read this sign and Slack it to the team" | read-text | slack → send_message |
-
-Skills provide Claude with *how to approach* a task. MCP tools provide *what actions* Claude can take. Together they enable complex workflows through simple voice commands.
-
-### Settings (Persisted)
-All settings save to `UserDefaults` and survive app restarts:
-- Gateway host/port
-- Camera source (iPhone or Ray-Ban)
-- ElevenLabs API key and voice selection
-- JPEG quality and frame interval
-
-## Architecture
-
-### Gateway Server (Node.js)
-
-```
-server/
-├── src/
-│   ├── index.ts              # Express entry + branded ASCII console
-│   ├── claude-client.ts      # Claude Messages API + vision + tool loop
-│   ├── mcp-manager.ts        # MCP server lifecycle & tool discovery
-│   ├── skill-loader.ts       # SKILL.md auto-discovery & injection
-│   ├── console-theme.ts      # Anthropic orange terminal theme
-│   ├── conversation.ts       # In-memory conversation store
-│   └── routes/
-│       ├── chat.ts           # POST /chat — text + images → Claude
-│       ├── health.ts         # GET /health — status + MCP + skills
-│       ├── tools.ts          # GET /tools — list MCP tools
-│       └── config.ts         # GET/POST /config — runtime settings
-├── skills/                   # Built-in skills (add SKILL.md here)
-│   ├── vision-describe/
-│   └── read-text/
-└── .env                      # API keys (git-ignored)
-```
-
-### iOS App (Swift/SwiftUI)
-
-```
-ios/ClaudeVision/
-├── Models/
-│   ├── ClaudeConfig.swift        # Persistent settings (Codable + UserDefaults)
-│   └── ChatModels.swift          # API request/response types
-├── Services/
-│   ├── ClaudeBridge.swift        # HTTP client → gateway
-│   ├── SpeechManager.swift       # STT + ElevenLabs TTS (10 voices)
-│   ├── CameraManager.swift       # AVCaptureSession 1080p @ 30fps
-│   ├── RayBanManager.swift       # DAT SDK streaming + registration
-│   ├── FrameSource.swift         # Protocol for camera/Ray-Ban
-│   └── AudioSessionManager.swift # Bluetooth HFP mic routing
-├── ViewModels/
-│   └── SessionViewModel.swift    # Pipeline orchestrator
-└── Views/
-    ├── ContentView.swift         # Camera preview + RayBanVideoView
-    ├── TranscriptView.swift      # Conversation history
-    └── SettingsView.swift        # Full settings UI + voice picker
-```
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/health` | GET | Status, MCP servers, skills, conversations |
-| `/tools` | GET | List all discovered MCP tools |
-| `/skills` | GET | List all loaded skills |
-| `/skills/reload` | POST | Hot-reload skills from disk |
-| `/chat` | POST | Send text + images, get Claude's response |
-| `/config` | GET/POST | View or update system prompt, model |
-
-### Chat Request
-
-```json
-{
-  "text": "What am I looking at?",
-  "images": ["<base64 JPEG>"],
-  "conversation_id": "optional-session-id"
-}
-```
-
-### Chat Response
-
-```json
-{
-  "text": "That's a silver MacBook Pro on a wooden desk with...",
-  "tool_calls": [{"name": "send_email", "result": {...}}],
-  "conversation_id": "generated-session-id"
-}
-```
+---
 
 ## Meta Ray-Ban Glasses
 
-### Setup
-
-1. Install the **Meta AI** app on your iPhone
-2. Pair your glasses via Bluetooth
-3. Enable **Developer Mode**: Meta AI → Settings → your glasses → Developer Mode → ON
-4. Restart glasses (hold button 15s → power off → press to power on)
-5. Register your app on [developers.meta.com](https://developers.meta.com):
-   - Create app → select "Wearables"
-   - iOS config: Team ID + Bundle ID (`com.claudevision.app`)
-   - Create version → assign to release channel
-6. In VisionClaude: Settings → **Connect Glasses via Meta AI** → Approve
-7. Switch camera source to **Meta Ray-Ban** → live video feed starts
+1. Install **Meta AI** app → pair glasses via Bluetooth
+2. **Developer Mode**: Meta AI → Settings → your glasses → Developer Mode → ON
+3. Restart glasses (hold button 15s to power off, press to power on)
+4. Register at [developers.meta.com](https://developers.meta.com): Create app → Wearables → iOS config (Team ID + Bundle ID `com.claudevision.app`) → create version → assign to release channel
+5. In VisionClaude: Settings → **Connect Glasses via Meta AI** → Approve
+6. Switch camera source to **Meta Ray-Ban**
 
 The DAT SDK is included via SPM from [facebook/meta-wearables-dat-ios](https://github.com/facebook/meta-wearables-dat-ios).
 
-### Developer Terms
-
 By using the Wearables Device Access Toolkit, you agree to the [Meta Wearables Developer Terms](https://wearables.developer.meta.com/terms) and [Acceptable Use Policy](https://wearables.developer.meta.com/acceptable-use-policy).
 
+---
+
 ## ElevenLabs Voices
+
+Configure via the web dashboard (http://localhost:18790) or iOS app Settings.
 
 | Voice | Style | Gender |
 |---|---|---|
@@ -434,31 +253,38 @@ By using the Wearables Device Access Toolkit, you agree to the [Meta Wearables D
 | Antoni | Well-rounded | Male |
 | Elli | Young & emotional | Female |
 
-Uses `eleven_flash_v2_5` model with streaming for lowest latency.
+Uses `eleven_flash_v2_5` model for lowest latency.
 
-## Manual Setup
+---
 
-### Gateway Server
+## Architecture
 
-```bash
-cd ClaudeVision/server
-cp .env.example .env        # Add your ANTHROPIC_API_KEY
-npm install
-npm run build
-npm start
+```
+ClaudeVision/
+├── channel/                    # Channel Mode (recommended)
+│   ├── server.ts               # MCP channel + WebSocket + dashboard
+│   ├── status.html             # Retro web dashboard
+│   └── package.json
+├── server/                     # Gateway Mode (standalone alternative)
+│   ├── src/
+│   │   ├── index.ts            # Express + branded ASCII console
+│   │   ├── claude-client.ts    # Claude API + vision + tool loop
+│   │   ├── mcp-manager.ts      # MCP server lifecycle (stdio + remote)
+│   │   ├── skill-loader.ts     # SKILL.md auto-discovery
+│   │   └── routes/             # REST endpoints
+│   └── skills/                 # Built-in skills
+├── ios/                        # iOS app (Swift/SwiftUI)
+│   ├── Models/                 # Config, API types
+│   ├── Services/               # Camera, speech, Ray-Ban, bridge
+│   ├── ViewModels/             # Session orchestrator
+│   └── Views/                  # UI (Apple HIG design)
+├── setup.sh                    # Interactive installer
+├── LICENSE                     # MIT
+├── CONTRIBUTING.md
+└── CODE_OF_CONDUCT.md
 ```
 
-### iOS App
-
-```bash
-brew install xcodegen
-cd ClaudeVision/ios
-xcodegen generate
-open ClaudeVision.xcodeproj
-# Signing & Capabilities → select your Team
-# Connect iPhone via USB → select in device dropdown
-# ⌘R to build and run
-```
+---
 
 ## License
 
@@ -466,7 +292,7 @@ MIT
 
 ## Disclaimer
 
-This project is not affiliated with, endorsed by, or officially connected to Anthropic, PBC or Meta Platforms, Inc. Claude is a trademark of Anthropic. Meta, Ray-Ban, and the Meta Wearables Device Access Toolkit are trademarks of Meta Platforms, Inc. ElevenLabs is a trademark of ElevenLabs, Inc.
+This project is not affiliated with, endorsed by, or officially connected to Anthropic, PBC, Meta Platforms, Inc., or ElevenLabs, Inc. Claude is a trademark of Anthropic. Meta, Ray-Ban, and the Meta Wearables Device Access Toolkit are trademarks of Meta Platforms, Inc. ElevenLabs is a trademark of ElevenLabs, Inc.
 
 ---
 

@@ -40,6 +40,13 @@ class SessionViewModel: ObservableObject {
     @Published var frameSourceStatus: FrameSourceStatus = .disconnected
     @Published var rayBanFrame: UIImage?
 
+    // Mode system
+    @Published var modeManager = ModeManager()
+
+    // QR/Barcode toast
+    @Published var codeToastMessage: String?
+    @Published var codeToastDetectedCode: DetectedCode?
+
     let bridge: ClaudeBridge
     let speechManager = SpeechManager()
     let cameraManager = CameraManager()
@@ -51,6 +58,7 @@ class SessionViewModel: ObservableObject {
         self.bridge = ClaudeBridge(config: config)
         setupBindings()
         setupBridgeCallbacks()
+        setupCodeDetection()
         rayBanManager.startMonitoringRegistration()
         speechManager.configureElevenLabs(
             apiKey: config.elevenLabsAPIKey,
@@ -129,12 +137,60 @@ class SessionViewModel: ObservableObject {
         }
     }
 
+    // MARK: - QR/Barcode Detection
+
+    private func setupCodeDetection() {
+        cameraManager.$lastDetectedCode
+            .compactMap { $0 }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] code in
+                guard let self else { return }
+                self.handleDetectedCode(code)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleDetectedCode(_ code: DetectedCode) {
+        if modeManager.activeMode.id == "qr_scanner" {
+            // In QR Scanner mode: automatically send to Claude
+            let message = "I scanned a \(code.type) code: \(code.value). What is this?"
+            Task { await self.sendText(message) }
+        } else {
+            // In other modes: show a toast notification
+            codeToastDetectedCode = code
+            codeToastMessage = "\(code.type): \(code.value)"
+            // Auto-dismiss toast after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                if self?.codeToastDetectedCode?.timestamp == code.timestamp {
+                    self?.codeToastMessage = nil
+                    self?.codeToastDetectedCode = nil
+                }
+            }
+        }
+    }
+
+    func sendCodeToChat(_ code: DetectedCode) {
+        codeToastMessage = nil
+        codeToastDetectedCode = nil
+        let message = "I scanned a \(code.type) code: \(code.value). What is this?"
+        Task { await self.sendText(message) }
+    }
+
+    func copyCodeToClipboard(_ code: DetectedCode) {
+        UIPasteboard.general.string = code.value
+        codeToastMessage = "Copied!"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.codeToastMessage = nil
+            self?.codeToastDetectedCode = nil
+        }
+    }
+
     // MARK: - Connection
 
     func connect() async {
         errorMessage = nil
 
-        // Try channel mode first (WebSocket → Claude Code session)
+        // Try channel mode first (WebSocket -> Claude Code session)
         bridge.mode = .channel
         bridge.connectWebSocket()
 
@@ -279,6 +335,10 @@ class SessionViewModel: ObservableObject {
         state = .thinking
         errorMessage = nil
 
+        // Prepend mode system prompt as context
+        let modeContext = modeManager.activeMode.systemPrompt
+        let fullText = "[Mode: \(modeManager.activeMode.name)] \(modeContext)\n\nUser: \(text)"
+
         // Grab latest frame
         var image: Data?
         let source: String
@@ -296,22 +356,22 @@ class SessionViewModel: ObservableObject {
             if let imageData = image, imageData.count > 100_000 {
                 // Large images: use HTTP multipart (avoids base64 bloat)
                 do {
-                    try await bridge.uploadImage(text: text, image: imageData, source: source)
+                    try await bridge.uploadImage(text: fullText, image: imageData, source: source)
                 } catch {
                     print("[Session] Upload error, falling back to WS: \(error)")
-                    bridge.sendMessage(text: text, image: imageData, source: source)
+                    bridge.sendMessage(text: fullText, image: imageData, source: source)
                 }
             } else {
                 // Small images or text-only: send via WebSocket
-                bridge.sendMessage(text: text, image: image, source: source)
+                bridge.sendMessage(text: fullText, image: image, source: source)
             }
-            print("[Session] Sent to channel: \"\(text)\" with \(image != nil ? "image" : "no image")")
+            print("[Session] Sent to channel: \"\(text)\" with \(image != nil ? "image" : "no image") [mode: \(modeManager.activeMode.name)]")
             // Reply comes back via onReply callback — don't set isProcessing = false here
 
         } else {
             // Gateway mode: REST fallback
             do {
-                let response = try await bridge.chatREST(text: text, images: image.map { [$0] } ?? [])
+                let response = try await bridge.chatREST(text: fullText, images: image.map { [$0] } ?? [])
                 transcript.append(TranscriptMessage(
                     role: .assistant,
                     text: response.text,

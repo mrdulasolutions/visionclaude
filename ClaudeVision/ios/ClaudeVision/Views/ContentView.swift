@@ -15,14 +15,16 @@ struct ContentView: View {
     @State private var textInput = ""
     @State private var hasRequestedPermissions = false
     @State private var isTextFieldFocused = false
+    @State private var showQuickActions = false
+    @State private var quickActionsOpacity: Double = 0
 
     var body: some View {
         ZStack {
-            // ── Camera Preview (edge-to-edge) ──
+            // -- Camera Preview (edge-to-edge) --
             cameraLayer
                 .ignoresSafeArea()
 
-            // ── Subtle bottom gradient (replaces heavy overlay) ──
+            // -- Subtle bottom gradient (replaces heavy overlay) --
             VStack {
                 Spacer()
                 LinearGradient(
@@ -34,28 +36,41 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
 
-            // ── Top gradient for status bar legibility ──
+            // -- Top gradient for status bar legibility --
             VStack {
                 LinearGradient(
                     colors: [.black.opacity(0.5), .clear],
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .frame(height: 120)
+                .frame(height: 140)
                 Spacer()
             }
             .ignoresSafeArea()
 
-            // ── Content Layer ──
+            // -- Content Layer --
             VStack(spacing: 0) {
-                // ── Top Status Bar ──
+                // -- Top Status Bar --
                 topBar
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
 
+                // -- Mode Selector Bar --
+                modeSelector
+                    .padding(.top, 6)
+
+                // -- Quick Actions (shown briefly on mode change) --
+                if showQuickActions {
+                    quickActionBar
+                        .padding(.horizontal, 12)
+                        .padding(.top, 6)
+                        .opacity(quickActionsOpacity)
+                        .transition(.opacity)
+                }
+
                 Spacer()
 
-                // ── Transcript (slides up from bottom like iMessage) ──
+                // -- Transcript (slides up from bottom like iMessage) --
                 if !viewModel.transcript.isEmpty {
                     TranscriptView(messages: viewModel.transcript)
                         .frame(maxHeight: UIScreen.main.bounds.height * 0.35)
@@ -66,7 +81,7 @@ struct ContentView: View {
                         ))
                 }
 
-                // ── Live Transcription ──
+                // -- Live Transcription --
                 if !viewModel.currentTranscription.isEmpty {
                     liveTranscriptionBanner
                         .padding(.horizontal, 16)
@@ -74,7 +89,16 @@ struct ContentView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
 
-                // ── Error Banner ──
+                // -- QR/Barcode Toast --
+                if let toastMessage = viewModel.codeToastMessage,
+                   let detectedCode = viewModel.codeToastDetectedCode {
+                    codeToastBanner(message: toastMessage, code: detectedCode)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 6)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                // -- Error Banner --
                 if let error = viewModel.errorMessage {
                     errorBanner(error)
                         .padding(.horizontal, 16)
@@ -82,12 +106,12 @@ struct ContentView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                // ── Text Input ──
+                // -- Text Input --
                 textInputBar
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
 
-                // ── Bottom Controls (frosted glass) ──
+                // -- Bottom Controls (frosted glass) --
                 bottomControls
                     .padding(.top, 8)
                     .padding(.bottom, 8)
@@ -100,6 +124,7 @@ struct ContentView: View {
                 isConnected: viewModel.isConnected,
                 frameSourceStatus: viewModel.frameSourceStatus,
                 rayBanManager: viewModel.rayBanManager,
+                modeManager: viewModel.modeManager,
                 onConnect: { Task { await viewModel.connect() } },
                 onConnectGlasses: { Task { await viewModel.connectGlasses() } }
             )
@@ -110,6 +135,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.25), value: viewModel.transcript.count)
         .animation(.easeInOut(duration: 0.2), value: viewModel.state)
         .animation(.easeInOut(duration: 0.2), value: viewModel.errorMessage != nil)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.codeToastMessage != nil)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
         }
@@ -159,6 +185,108 @@ struct ContentView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Mode Selector
+
+    private var modeSelector: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(viewModel.modeManager.visibleModes) { mode in
+                        modePill(mode)
+                            .id(mode.id)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .onChange(of: viewModel.modeManager.activeMode.id) { _, newId in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(newId, anchor: .center)
+                }
+                showQuickActionsTemporarily()
+            }
+        }
+    }
+
+    private func modePill(_ mode: VisionMode) -> some View {
+        let isActive = viewModel.modeManager.activeMode.id == mode.id
+        return Button {
+            triggerHaptic(.light)
+            viewModel.modeManager.setActiveMode(mode)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: mode.icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(mode.name)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .foregroundStyle(isActive ? .white : .white.opacity(0.75))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                Capsule()
+                    .fill(isActive ? mode.swiftColor.opacity(0.85) : .white.opacity(0.1))
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        isActive ? mode.swiftColor : .clear,
+                        lineWidth: isActive ? 1.5 : 0
+                    )
+            )
+            .shadow(color: isActive ? mode.swiftColor.opacity(0.4) : .clear, radius: 6, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Quick Actions
+
+    private var quickActionBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(viewModel.modeManager.activeMode.quickActions, id: \.self) { action in
+                    Button {
+                        triggerHaptic(.light)
+                        textInput = action
+                        sendTextInput()
+                    } label: {
+                        Text(action)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                viewModel.modeManager.activeMode.swiftColor.opacity(0.3),
+                                in: Capsule()
+                            )
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(.white.opacity(0.15), lineWidth: 0.5)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func showQuickActionsTemporarily() {
+        showQuickActions = true
+        withAnimation(.easeIn(duration: 0.2)) {
+            quickActionsOpacity = 1.0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            withAnimation(.easeOut(duration: 0.5)) {
+                quickActionsOpacity = 0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showQuickActions = false
             }
         }
     }
@@ -250,6 +378,60 @@ struct ContentView: View {
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    // MARK: - QR/Barcode Toast
+
+    private func codeToastBanner(message: String, code: DetectedCode) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "qrcode")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.green)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(code.type.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.green.opacity(0.8))
+                Text(code.value)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            // Copy button
+            Button {
+                triggerHaptic(.light)
+                viewModel.copyCodeToClipboard(code)
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 30, height: 30)
+                    .background(.white.opacity(0.15), in: Circle())
+            }
+
+            // Send to Claude button
+            Button {
+                triggerHaptic(.medium)
+                viewModel.sendCodeToChat(code)
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.green)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(.green.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 
     // MARK: - Error Banner

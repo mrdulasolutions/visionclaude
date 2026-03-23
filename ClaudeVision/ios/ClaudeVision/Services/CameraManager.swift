@@ -2,22 +2,57 @@ import Foundation
 import AVFoundation
 import UIKit
 
+// MARK: - Detected Code Model
+
+struct DetectedCode: Equatable {
+    let type: String
+    let value: String
+    let timestamp: Date
+
+    static func == (lhs: DetectedCode, rhs: DetectedCode) -> Bool {
+        lhs.type == rhs.type && lhs.value == rhs.value
+    }
+}
+
+// MARK: - Camera Manager
+
 class CameraManager: NSObject, ObservableObject, FrameSource {
     @Published var latestFrame: Data?
     @Published var latestImage: UIImage?
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var connectionStatus: FrameSourceStatus = .disconnected
     @Published var frameCount: Int = 0
+    @Published var lastDetectedCode: DetectedCode?
 
     let sourceType: FrameSourceType = .iPhone
 
     let captureSession = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
+    private let metadataOutput = AVCaptureMetadataOutput()
     private let processingQueue = DispatchQueue(label: "camera.processing")
+    private let metadataQueue = DispatchQueue(label: "camera.metadata")
     private var lastCaptureTime: Date = .distantPast
     private var frameInterval: TimeInterval = 1.0
     private var jpegQuality: CGFloat = 0.5
     private var isConfigured = false
+
+    // QR/Barcode debounce
+    private var lastCodeValue: String?
+    private var lastCodeTime: Date = .distantPast
+    private let codeDebounceInterval: TimeInterval = 3.0
+
+    // Supported barcode types
+    private let supportedCodeTypes: [AVMetadataObject.ObjectType] = [
+        .qr,
+        .ean13,
+        .ean8,
+        .code128,
+        .code39,
+        .upce,
+        .pdf417,
+        .aztec,
+        .dataMatrix
+    ]
 
     func configure(frameInterval: TimeInterval = 1.0, jpegQuality: CGFloat = 0.5) {
         self.frameInterval = frameInterval
@@ -68,6 +103,7 @@ class CameraManager: NSObject, ObservableObject, FrameSource {
                 captureSession.addInput(input)
             }
 
+            // Video output for frame capture
             videoOutput.setSampleBufferDelegate(self, queue: processingQueue)
             videoOutput.alwaysDiscardsLateVideoFrames = true
             // Request high-quality pixel format
@@ -77,6 +113,17 @@ class CameraManager: NSObject, ObservableObject, FrameSource {
 
             if captureSession.canAddOutput(videoOutput) {
                 captureSession.addOutput(videoOutput)
+            }
+
+            // Metadata output for QR/barcode detection
+            if captureSession.canAddOutput(metadataOutput) {
+                captureSession.addOutput(metadataOutput)
+                metadataOutput.setMetadataObjectsDelegate(self, queue: metadataQueue)
+                // Only set types that the output actually supports
+                let available = metadataOutput.availableMetadataObjectTypes
+                let desired = supportedCodeTypes.filter { available.contains($0) }
+                metadataOutput.metadataObjectTypes = desired
+                print("[Camera] QR/Barcode detection enabled for: \(desired.map { $0.rawValue })")
             }
 
             captureSession.commitConfiguration()
@@ -114,6 +161,8 @@ class CameraManager: NSObject, ObservableObject, FrameSource {
     }
 }
 
+// MARK: - Video Frame Capture
+
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let now = Date()
@@ -136,6 +185,43 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         }
     }
 }
+
+// MARK: - QR/Barcode Metadata Detection
+
+extension CameraManager: AVCaptureMetadataOutputObjectsDelegate {
+    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+        guard let metadataObject = metadataObjects.first,
+              let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject,
+              let stringValue = readableObject.stringValue else { return }
+
+        let now = Date()
+        let codeType = readableObject.type.rawValue
+
+        // Debounce: skip if same code detected within the debounce window
+        if stringValue == lastCodeValue && now.timeIntervalSince(lastCodeTime) < codeDebounceInterval {
+            return
+        }
+
+        lastCodeValue = stringValue
+        lastCodeTime = now
+
+        let detected = DetectedCode(
+            type: codeType,
+            value: stringValue,
+            timestamp: now
+        )
+
+        print("[Camera] Detected \(codeType): \(stringValue.prefix(100))")
+
+        DispatchQueue.main.async { [weak self] in
+            self?.lastDetectedCode = detected
+            // Haptic feedback on detection
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+    }
+}
+
+// MARK: - Camera Error
 
 enum CameraError: LocalizedError {
     case noCameraAvailable

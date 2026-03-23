@@ -60,7 +60,13 @@
       "Bash(bun install:*)",
       "Bash(ln -sfn \"/Users/mrdulasolutions/Desktop/Claude Repo/VisionClaude/ClaudeVision/channel\" \"/Users/mrdulasolutions/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/visionclaude\")",
       "Bash(mkdir -p ~/.claude/channels/visionclaude)",
-      "Bash(~/.claude/channels/visionclaude/.env:*)"
+      "Bash(~/.claude/channels/visionclaude/.env:*)",
+      "Bash(ipconfig getifaddr:*)",
+      "Bash(bun --version)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "visionclaude"
+  ]
 }

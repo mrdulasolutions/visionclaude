@@ -45,6 +45,41 @@ const ELEVENLABS_KEY = process.env.ELEVENLABS_API_KEY ?? ''
 const ELEVENLABS_VOICE = process.env.ELEVENLABS_VOICE_ID ?? 'XB0fDUnXU5powFXDhCwa' // Charlotte
 const ELEVENLABS_MODEL = 'eleven_flash_v2_5'
 
+// ── Auth ──────────────────────────────────────────────────────────────────
+// Generate a random token on first run, save it, reuse on restarts
+function loadOrCreateToken(): string {
+  const tokenFile = join(STATE_DIR, '.channel-token')
+  try {
+    const existing = readFileSync(tokenFile, 'utf8').trim()
+    if (existing.length >= 16) return existing
+  } catch {}
+  // Generate a 32-char hex token
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+  mkdirSync(STATE_DIR, { recursive: true })
+  writeFileSync(tokenFile, token, { mode: 0o600 })
+  return token
+}
+const CHANNEL_TOKEN = process.env.VISIONCLAUDE_TOKEN ?? loadOrCreateToken()
+
+function checkAuth(req: Request): boolean {
+  // Check Authorization header: "Bearer <token>"
+  const authHeader = req.headers.get('authorization')
+  if (authHeader === `Bearer ${CHANNEL_TOKEN}`) return true
+  // Check query param: ?token=<token>
+  const url = new URL(req.url)
+  if (url.searchParams.get('token') === CHANNEL_TOKEN) return true
+  return false
+}
+
+function unauthorized(): Response {
+  return Response.json(
+    { error: 'unauthorized', hint: 'Set the channel token in iOS app Settings → Channel Token' },
+    { status: 401 }
+  )
+}
+
 // ── Types ───────────────────────────────────────────────────────────────────
 type WireOut =
   | { type: 'reply'; id: string; text: string; audio_url?: string }
@@ -246,17 +281,19 @@ Bun.serve({
 
     // ── WebSocket upgrade ───────────────────────────────────────────────
     if (url.pathname === '/ws') {
+      if (!checkAuth(req)) return unauthorized()
       if (server.upgrade(req)) return
       return new Response('upgrade failed', { status: 400 })
     }
 
-    // ── Health check ────────────────────────────────────────────────────
+    // ── Health check (no auth — just a ping) ─────────────────────────
     if (url.pathname === '/health') {
       return Response.json({
         status: 'ok',
         mode: 'channel',
         clients: clients.size,
         tts: !!ELEVENLABS_KEY,
+        auth: 'required',
       })
     }
 
@@ -274,6 +311,11 @@ Bun.serve({
       } catch {
         return new Response('404', { status: 404 })
       }
+    }
+
+    // ── Auth-protected endpoints ────────────────────────────────────────
+    if (['/upload', '/message', '/files/'].some(p => url.pathname.startsWith(p)) && !checkAuth(req)) {
+      return unauthorized()
     }
 
     // ── Image upload from iOS app ───────────────────────────────────────
@@ -379,6 +421,10 @@ log(`   WebSocket: ws://localhost:${PORT}/ws`)
 log(`   Health:    http://localhost:${PORT}/health`)
 log(`   Upload:    POST http://localhost:${PORT}/upload`)
 log(`   TTS:       ${ELEVENLABS_KEY ? '✅ ElevenLabs configured' : '❌ No ElevenLabs key'}`)
+log(``)
+log(`   🔐 Channel Token: ${CHANNEL_TOKEN}`)
+log(`   Enter this token in iOS app → Settings → Channel Token`)
+log(`   Token saved to: ${join(STATE_DIR, '.channel-token')}`)
 
 // ── Status HTML ─────────────────────────────────────────────────────────────
 const STATUS_HTML = `<!doctype html>

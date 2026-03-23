@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "visionclaude": {
+      "command": "bun",
+      "args": ["run", "/Users/mrdulasolutions/Desktop/Claude Repo/VisionClaude/ClaudeVision/channel/server.ts"]
+    }
+  }
+}

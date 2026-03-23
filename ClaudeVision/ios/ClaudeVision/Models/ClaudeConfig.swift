@@ -8,9 +8,22 @@ struct ClaudeConfig: Codable {
     var speechPauseThreshold: TimeInterval = 1.5
     var elevenLabsAPIKey: String = ""
     var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM" // Rachel (default)
+    var channelToken: String = ""
 
     var baseURL: URL {
         URL(string: "http://\(gatewayHost):\(gatewayPort)")!
+    }
+
+    var wsURL: URL {
+        var comps = URLComponents()
+        comps.scheme = "ws"
+        comps.host = gatewayHost
+        comps.port = gatewayPort
+        comps.path = "/ws"
+        if !channelToken.isEmpty {
+            comps.queryItems = [URLQueryItem(name: "token", value: channelToken)]
+        }
+        return comps.url!
     }
 
     var chatURL: URL { baseURL.appendingPathComponent("chat") }

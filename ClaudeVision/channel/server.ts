@@ -297,6 +297,16 @@ Bun.serve({
       })
     }
 
+    // ── Token endpoint (localhost only — so user can grab it) ────────
+    if (url.pathname === '/token') {
+      const reqHost = req.headers.get('host') ?? ''
+      const isLocal = reqHost.startsWith('localhost') || reqHost.startsWith('127.0.0.1')
+      if (!isLocal) {
+        return Response.json({ error: 'token only available from localhost' }, { status: 403 })
+      }
+      return Response.json({ token: CHANNEL_TOKEN })
+    }
+
     // ── Serve files (TTS audio, attachments) ────────────────────────────
     if (url.pathname.startsWith('/files/')) {
       const f = url.pathname.slice(7)
@@ -442,12 +452,26 @@ const STATUS_HTML = `<!doctype html>
   <p><span class="ok">●</span> Channel server running</p>
   <p>Mode: <strong>Claude Code Channel</strong> (direct session integration)</p>
   <p>Port: <code>${PORT}</code></p>
-  <p>WebSocket: <code>ws://localhost:${PORT}/ws</code></p>
   <p>TTS: ${ELEVENLABS_KEY ? '<span class="ok">● ElevenLabs configured</span>' : '<span class="warn">● No ElevenLabs key</span>'}</p>
+</div>
+<div style="background:#0f3460;border:2px solid #E87B35;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">
+  <p style="margin:0 0 8px;font-size:14px;color:#aaa;">🔐 Channel Token — enter this in iOS app Settings</p>
+  <div id="token" style="font-family:monospace;font-size:18px;color:#E87B35;letter-spacing:2px;cursor:pointer;word-break:break-all;" onclick="copyToken()">loading...</div>
+  <button onclick="copyToken()" style="background:#E87B35;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-top:10px;font-size:14px;">📋 Copy Token</button>
+</div>
+<div class="status">
+  <p style="margin:0 0 4px;font-size:14px;color:#aaa;">📱 iOS App Settings</p>
+  <p>Host: <code id="ip">loading...</code></p>
+  <p>Port: <code>${PORT}</code></p>
 </div>
 <div class="status">
   <h3>How it works</h3>
   <p>Your iOS app connects via WebSocket. Messages are pushed directly into your running Claude Code session. Claude has full access to ALL your MCP tools and skills.</p>
   <p>No separate API key. No gateway. Direct integration.</p>
 </div>
+<script>
+fetch('/token').then(r=>r.json()).then(d=>{document.getElementById('token').textContent=d.token}).catch(()=>{document.getElementById('token').textContent='Open from localhost to see token'});
+document.getElementById('ip').textContent=location.hostname==='localhost'||location.hostname==='127.0.0.1'?'Use your Mac IP (run: ifconfig | grep inet)':location.hostname;
+function copyToken(){var t=document.getElementById('token').textContent;navigator.clipboard.writeText(t).then(()=>{event.target.textContent='✅ Copied!';setTimeout(()=>event.target.textContent='📋 Copy Token',2000)})}
+</script>
 `

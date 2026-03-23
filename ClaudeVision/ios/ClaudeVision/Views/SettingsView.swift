@@ -34,6 +34,15 @@ struct SettingsView: View {
                             .keyboardType(.numberPad)
                     }
 
+                    HStack {
+                        Text("Channel Token")
+                        Spacer()
+                        SecureField("paste token here", text: $config.channelToken)
+                            .multilineTextAlignment(.trailing)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+
                     Button {
                         testConnection()
                     } label: {

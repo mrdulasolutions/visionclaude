@@ -113,7 +113,7 @@ show_welcome() {
     echo -e "  ${WHITE}3.${RESET} ${LIGHT_ORANGE}ElevenLabs TTS${RESET} ${DIM}(optional — premium voice responses)${RESET}"
     echo -e "     ${DIM}10 selectable voices with low-latency flash model${RESET}"
     echo ""
-    echo -e "  ${DIM}  Or choose Gateway Mode (standalone, uses Claude API key directly)${RESET}
+    echo -e "  ${DIM}  Or choose Gateway Mode (standalone, uses Claude API key directly)${RESET}"
     echo ""
     echo -e "${GRAY}  ─────────────────────────────────────────────────────────${RESET}"
     echo ""

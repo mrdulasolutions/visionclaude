@@ -131,6 +131,11 @@ Point your camera at something and say *"What am I looking at?"* — Claude desc
 - Configurable from the web dashboard or iOS app settings
 
 ### Channel Dashboard (http://localhost:18790)
+
+<p align="center">
+<img src="ClaudeVision/docs/images/dashboard-screenshot.png" alt="VisionClaude Dashboard" width="500" />
+</p>
+
 - Retro terminal UI with live status monitoring
 - Auto-detects and displays your Mac's IP
 - One-click copy for token, IP, and all settings

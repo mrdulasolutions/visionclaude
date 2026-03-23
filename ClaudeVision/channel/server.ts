@@ -392,6 +392,37 @@ Bun.serve({
       return Response.json({ activity: activityLog })
     }
 
+    // ── Send iMessage/SMS via AppleScript ──────────────────────────────
+    if (url.pathname === '/send-sms' && req.method === 'POST') {
+      if (!checkAuth(req)) return unauthorized()
+      try {
+        const body = await req.json() as { phone?: string; message?: string }
+        if (!body.phone || !body.message) {
+          return Response.json({ error: 'missing phone or message' }, { status: 400 })
+        }
+        const phone = body.phone.replace(/[^0-9+]/g, '') // sanitize
+        const msg = body.message.replace(/"/g, '\\"').replace(/\\/g, '\\\\') // escape for AppleScript
+        const script = `
+          tell application "Messages"
+            set targetService to 1st service whose service type = iMessage
+            set targetBuddy to buddy "${phone}" of targetService
+            send "${msg}" to targetBuddy
+          end tell
+        `
+        const proc = Bun.spawn(['osascript', '-e', script], { stderr: 'pipe', stdout: 'pipe' })
+        const exitCode = await proc.exited
+        if (exitCode === 0) {
+          logActivity({ ts: new Date().toISOString(), direction: 'out', source: 'imessage', text: `→ ${phone}: ${body.message.slice(0, 60)}` })
+          return Response.json({ ok: true, method: 'imessage' })
+        } else {
+          const stderr = await new Response(proc.stderr).text()
+          return Response.json({ ok: false, error: stderr.trim() || 'AppleScript failed' }, { status: 500 })
+        }
+      } catch (e) {
+        return Response.json({ error: String(e) }, { status: 500 })
+      }
+    }
+
     // ── CORS preflight ──────────────────────────────────────────────────
     if (req.method === 'OPTIONS') {
       return new Response(null, {

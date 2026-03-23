@@ -101,11 +101,27 @@
 
   <div class="card">
     <div class="card-header"><span class="icon">▸</span> 💬 SEND TO PHONE</div>
-    <div class="msg-row">
-      <input class="msg-input" id="msg-input" placeholder="Type a message to send to phone..." onkeydown="if(event.key==='Enter')sendMsg()">
-      <button class="btn btn-primary" onclick="sendMsg()">Send ▸</button>
+
+    <!-- iMessage: send connection details to a phone number -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:#666;margin-bottom:6px;">📱 Send connection details via iMessage</div>
+      <div class="msg-row">
+        <input class="msg-input" id="sms-phone" placeholder="Phone number..." style="max-width:160px" value="">
+        <button class="btn" onclick="sendQuickSetup()" id="sms-quick-btn">Send Setup Info</button>
+        <button class="btn btn-primary" onclick="sendCustomSMS()" id="sms-send-btn">Send Custom ▸</button>
+      </div>
+      <input class="msg-input" id="sms-custom" placeholder="Custom message (optional)..." style="margin-top:6px;width:100%">
+      <div id="sms-status" style="font-size:11px;color:#666;margin-top:6px;min-height:16px;"></div>
     </div>
-    <div id="msg-status" style="font-size:11px;color:#666;margin-top:6px;min-height:16px;"></div>
+
+    <div style="border-top:1px solid #222;padding-top:12px">
+      <div style="font-size:11px;color:#666;margin-bottom:6px;">⚡ Send to connected app (WebSocket)</div>
+      <div class="msg-row">
+        <input class="msg-input" id="msg-input" placeholder="Message to connected app..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="btn btn-primary" onclick="sendMsg()">Send ▸</button>
+      </div>
+      <div id="msg-status" style="font-size:11px;color:#666;margin-top:6px;min-height:16px;"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -142,7 +158,31 @@ function copyAll(){var token=document.getElementById('token').textContent;var ip
 function sendMsg(){var input=document.getElementById('msg-input');var text=input.value.trim();if(!text)return;var status=document.getElementById('msg-status');status.textContent='Sending...';status.style.color='#E87B35';fetch('/message',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({text:text,source:'mac'})}).then(r=>r.json()).then(d=>{if(d.ok){var c=d.clients||0;status.textContent=c>0?'✅ Delivered to '+c+' client'+(c>1?'s':''):'⚠️ Sent but no clients connected';status.style.color=c>0?'#4ade80':'#facc15';input.value='';loadActivity()}else{status.textContent='❌ Failed';status.style.color='#f87171'}}).catch(e=>{status.textContent='❌ '+e.message;status.style.color='#f87171'});setTimeout(()=>{status.textContent=''},5000)}
 
 function loadActivity(){fetch('/activity',{headers:{'Authorization':'Bearer '+TOKEN}}).then(r=>r.json()).then(d=>{var el=document.getElementById('activity-log');if(!d.activity||!d.activity.length){el.innerHTML='<div style="color:#444;text-align:center;padding:12px;">No activity yet</div>';return}el.innerHTML=d.activity.map(a=>{var dir=a.direction==='in'?'<span style="color:#4ade80">◂ IN</span>':'<span style="color:#E87B35">▸ OUT</span>';var time=new Date(a.ts).toLocaleTimeString();return '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1a1a1a"><span style="color:#444;min-width:70px">'+time+'</span>'+dir+'<span style="color:#666;min-width:50px">'+a.source+'</span><span style="color:#c0c0c0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.text+'</span></div>'}).join('')}).catch(()=>{})}
-loadActivity();setInterval(loadActivity,5000)
+loadActivity();setInterval(loadActivity,5000);
+
+function sendSMS(phone,message,statusEl){
+  var s=document.getElementById(statusEl);
+  s.textContent='Sending via iMessage...';s.style.color='#E87B35';
+  fetch('/send-sms',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({phone:phone,message:message})})
+  .then(r=>r.json()).then(d=>{if(d.ok){s.textContent='✅ Sent via iMessage!';s.style.color='#4ade80';loadActivity()}else{s.textContent='❌ '+(d.error||'Failed');s.style.color='#f87171'}})
+  .catch(e=>{s.textContent='❌ '+e.message;s.style.color='#f87171'});
+  setTimeout(()=>{s.textContent=''},5000)
+}
+function sendQuickSetup(){
+  var phone=document.getElementById('sms-phone').value.trim();
+  if(!phone){document.getElementById('sms-status').textContent='Enter a phone number';document.getElementById('sms-status').style.color='#f87171';return}
+  var ip=document.getElementById('ip').textContent;
+  var port=document.getElementById('port').textContent;
+  var msg='VisionClaude Setup\n\nHost: '+ip+'\nPort: '+port+'\nToken: '+TOKEN+'\n\nEnter these in the VisionClaude app → Settings → Connect';
+  sendSMS(phone,msg,'sms-status')
+}
+function sendCustomSMS(){
+  var phone=document.getElementById('sms-phone').value.trim();
+  var msg=document.getElementById('sms-custom').value.trim();
+  if(!phone){document.getElementById('sms-status').textContent='Enter a phone number';document.getElementById('sms-status').style.color='#f87171';return}
+  if(!msg){document.getElementById('sms-status').textContent='Enter a message';document.getElementById('sms-status').style.color='#f87171';return}
+  sendSMS(phone,msg,'sms-status');document.getElementById('sms-custom').value=''
+}
 function saveElevenKey(){var key=document.getElementById('eleven-key').value.trim();var status=document.getElementById('eleven-status');if(!key){status.textContent='Enter a key first';status.style.color='#f87171';return}fetch('/config/tts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({key:key})}).then(r=>r.json()).then(d=>{if(d.ok){status.textContent='✅ Key saved! Restart channel to apply.';status.style.color='#4ade80';document.getElementById('tts-status').innerHTML='<span class="dot dot-green"></span>ElevenLabs (restart to apply)'}else{status.textContent='❌ '+(d.error||'Failed');status.style.color='#f87171'}}).catch(e=>{status.textContent='❌ '+e.message;status.style.color='#f87171'})}
 </script>
 </body></html>

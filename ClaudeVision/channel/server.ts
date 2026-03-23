@@ -22,7 +22,7 @@ import {
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import { readFileSync, writeFileSync, mkdirSync, statSync, copyFileSync, existsSync } from 'fs'
-import { homedir } from 'os'
+import { homedir, networkInterfaces } from 'os'
 import { join, extname, basename } from 'path'
 import type { ServerWebSocket } from 'bun'
 
@@ -276,7 +276,7 @@ function mime(ext: string) {
 Bun.serve({
   port: PORT,
   hostname: '0.0.0.0',  // allow LAN connections from phone
-  fetch(req, server) {
+  async fetch(req, server) {
     const url = new URL(req.url)
 
     // ── WebSocket upgrade ───────────────────────────────────────────────
@@ -299,7 +299,6 @@ Bun.serve({
 
     // ── Local IP endpoint ─────────────────────────────────────────────
     if (url.pathname === '/local-ip') {
-      const { networkInterfaces } = await import('os')
       const nets = networkInterfaces()
       const ips: string[] = []
       for (const name of Object.keys(nets)) {

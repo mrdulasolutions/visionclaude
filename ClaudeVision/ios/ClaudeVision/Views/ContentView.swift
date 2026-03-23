@@ -235,7 +235,7 @@ struct ContentView: View {
         HStack(spacing: 8) {
             Image(systemName: "waveform")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.anthropicOrange)
+                .foregroundColor(Color.anthropicOrange)
                 .symbolEffect(.variableColor.iterative, isActive: true)
 
             Text(viewModel.currentTranscription)
@@ -295,7 +295,7 @@ struct ContentView: View {
                     Button(action: sendTextInput) {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundStyle(.anthropicOrange)
+                            .foregroundColor(Color.anthropicOrange)
                             .symbolRenderingMode(.hierarchical)
                     }
                     .transition(.scale.combined(with: .opacity))

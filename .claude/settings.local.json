@@ -65,7 +65,10 @@
       "Bash(bun --version)",
       "mcp__visionclaude__reply",
       "mcp__visionclaude__edit_message",
-      "Read(~/.claude/channels/visionclaude/**)"
+      "Read(~/.claude/channels/visionclaude/**)",
+      "Bash(timeout 3 bun run server.ts)",
+      "Bash(curl -s http://localhost:18790/health)",
+      "Bash(curl -s http://localhost:18790/local-ip)"
     ]
   },
   "enableAllProjectMcpServers": true,

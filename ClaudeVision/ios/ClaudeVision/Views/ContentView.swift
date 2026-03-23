@@ -166,14 +166,11 @@ struct ContentView: View {
                 Circle()
                     .fill(viewModel.isConnected ? .green : .red)
                     .frame(width: 7, height: 7)
+                Text(viewModel.connectionMode == .channel ? "⚡" : "🌐")
+                    .font(.system(size: 9))
                 Image(systemName: viewModel.activeFrameSource.icon)
                     .font(.system(size: 10))
                     .foregroundColor(frameSourceColor)
-                if viewModel.cameraManager.frameCount > 0 || viewModel.activeFrameSource == .iPhone {
-                    Text("\(viewModel.cameraManager.frameCount)f")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.5))
-                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)

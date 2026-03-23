@@ -19,7 +19,10 @@ struct ToolCallResult: Decodable {
 
 struct HealthResponse: Decodable {
     let status: String
-    let uptime: Double
+    let uptime: Double?       // gateway mode
+    let mode: String?         // channel mode
+    let clients: Int?         // channel mode
+    let tts: Bool?            // channel mode
 }
 
 // Wrapper for decoding arbitrary JSON values

@@ -295,6 +295,34 @@ class SpeechManager: NSObject, ObservableObject {
         isSpeaking = false
     }
 
+    /// Play TTS audio from a remote URL (used in channel mode where server generates TTS)
+    func playRemoteAudio(url: URL, completion: @escaping () -> Void) {
+        isSpeaking = true
+        Task {
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                    print("[Speech] Remote audio fetch failed")
+                    await MainActor.run { self.isSpeaking = false }
+                    completion()
+                    return
+                }
+                print("[Speech] Playing remote audio: \(data.count) bytes from \(url.lastPathComponent)")
+                AudioDataPlayer.shared.play(data: data) { [weak self] in
+                    Task { @MainActor in
+                        self?.isSpeaking = false
+                        print("[Speech] Remote audio playback finished")
+                    }
+                    completion()
+                }
+            } catch {
+                print("[Speech] Remote audio error: \(error)")
+                await MainActor.run { self.isSpeaking = false }
+                completion()
+            }
+        }
+    }
+
     private func speakWithElevenLabs(_ client: ElevenLabsTTSClient, text: String) {
         Task {
             do {

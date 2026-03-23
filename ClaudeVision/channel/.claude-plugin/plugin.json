@@ -1,0 +1,17 @@
+{
+  "name": "visionclaude",
+  "description": "VisionClaude — Let Claude see the world through your eyes. Camera + voice + Meta Ray-Ban glasses bridge for Claude Code via iOS app.",
+  "version": "1.0.0",
+  "keywords": [
+    "visionclaude",
+    "vision",
+    "camera",
+    "rayban",
+    "meta",
+    "glasses",
+    "voice",
+    "channel",
+    "mcp",
+    "ios"
+  ]
+}

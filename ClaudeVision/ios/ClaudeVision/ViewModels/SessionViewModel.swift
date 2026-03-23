@@ -18,18 +18,17 @@ class SessionViewModel: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var errorMessage: String?
     @Published var isProcessing: Bool = false
+    @Published var connectionMode: ClaudeBridge.ConnectionMode = .channel
 
     @Published var config: ClaudeConfig {
         didSet {
-            bridge = ClaudeBridge(config: config)
-            // Reconfigure ElevenLabs when key or voice changes
+            bridge.updateConfig(config)
             speechManager.configureElevenLabs(
                 apiKey: config.elevenLabsAPIKey,
                 voiceId: config.elevenLabsVoiceId
             )
             speechManager.setVoice(config.elevenLabsVoiceId)
             speechManager.setPauseThreshold(config.speechPauseThreshold)
-            // Persist settings
             config.save()
         }
     }
@@ -39,9 +38,9 @@ class SessionViewModel: ObservableObject {
         didSet { switchFrameSource() }
     }
     @Published var frameSourceStatus: FrameSourceStatus = .disconnected
-    @Published var rayBanFrame: UIImage?  // Forwarded from rayBanManager for SwiftUI reactivity
+    @Published var rayBanFrame: UIImage?
 
-    private var bridge: ClaudeBridge
+    let bridge: ClaudeBridge
     let speechManager = SpeechManager()
     let cameraManager = CameraManager()
     let rayBanManager = RayBanManager()
@@ -51,13 +50,14 @@ class SessionViewModel: ObservableObject {
         self.config = config
         self.bridge = ClaudeBridge(config: config)
         setupBindings()
+        setupBridgeCallbacks()
         rayBanManager.startMonitoringRegistration()
         speechManager.configureElevenLabs(
             apiKey: config.elevenLabsAPIKey,
             voiceId: config.elevenLabsVoiceId
         )
 
-        // Forward Ray-Ban frames to trigger SwiftUI updates
+        // Forward Ray-Ban frames for SwiftUI reactivity
         rayBanManager.$latestImage
             .receive(on: RunLoop.main)
             .assign(to: &$rayBanFrame)
@@ -70,10 +70,164 @@ class SessionViewModel: ObservableObject {
                 self.frameSourceStatus = status
             }
             .store(in: &cancellables)
+
+        // Forward bridge connection state
+        bridge.$isConnected
+            .receive(on: RunLoop.main)
+            .assign(to: &$isConnected)
+
+        bridge.$mode
+            .receive(on: RunLoop.main)
+            .assign(to: &$connectionMode)
+    }
+
+    // MARK: - Bridge Callbacks
+
+    private func setupBridgeCallbacks() {
+        // When Claude replies via the channel
+        bridge.onReply = { [weak self] text, audioUrl in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+
+                self.transcript.append(TranscriptMessage(role: .assistant, text: text))
+                self.isProcessing = false
+
+                if let audioUrl, let url = URL(string: audioUrl) {
+                    // Play TTS audio from channel server
+                    self.state = .speaking
+                    self.speechManager.playRemoteAudio(url: url) { [weak self] in
+                        Task { @MainActor in
+                            guard let self, self.isConnected, self.state == .speaking else { return }
+                            self.startListening()
+                        }
+                    }
+                } else {
+                    // Fallback to local TTS
+                    self.state = .speaking
+                    self.speechManager.speak(text)
+                    self.observeSpeechCompletion()
+                }
+            }
+        }
+
+        bridge.onStatus = { [weak self] status in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if status == "connected" {
+                    self.state = .idle
+                    self.errorMessage = nil
+                    try? AudioSessionManager.shared.configureForVoiceChat()
+                    self.startActiveFrameSource()
+                }
+            }
+        }
+
+        bridge.onDisconnect = { [weak self] in
+            Task { @MainActor in
+                self?.state = .disconnected
+            }
+        }
+    }
+
+    // MARK: - Connection
+
+    func connect() async {
+        errorMessage = nil
+
+        // Try channel mode first (WebSocket → Claude Code session)
+        bridge.mode = .channel
+        bridge.connectWebSocket()
+
+        // Also check health endpoint for status
+        do {
+            let health = try await bridge.checkHealth()
+            if health.status == "ok" {
+                print("[Session] Channel server health OK")
+            }
+        } catch {
+            print("[Session] Health check failed (channel may still connect via WS): \(error.localizedDescription)")
+        }
+    }
+
+    func disconnect() {
+        speechManager.stopListening()
+        speechManager.stopSpeaking()
+        cameraManager.stop()
+        rayBanManager.stop()
+        bridge.disconnect()
+        frameSourceStatus = .disconnected
+        state = .disconnected
     }
 
     func connectGlasses() async {
         await rayBanManager.register()
+    }
+
+    // MARK: - Frame Source
+
+    private func switchFrameSource() {
+        cameraManager.stop()
+        rayBanManager.stop()
+
+        if activeFrameSource == .rayBan {
+            AudioSessionManager.shared.routeToBluetoothMicIfAvailable()
+            if isConnected && !speechManager.isListening {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.startListening()
+                }
+            }
+        }
+        startActiveFrameSource()
+    }
+
+    private func startActiveFrameSource() {
+        do {
+            switch activeFrameSource {
+            case .iPhone:
+                cameraManager.configure(frameInterval: config.videoFrameInterval, jpegQuality: config.videoJPEGQuality)
+                try cameraManager.start()
+                frameSourceStatus = .connected
+            case .rayBan:
+                rayBanManager.configure(frameInterval: config.videoFrameInterval, jpegQuality: config.videoJPEGQuality)
+                try rayBanManager.start()
+            }
+            errorMessage = nil
+        } catch {
+            frameSourceStatus = .error(error.localizedDescription)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Interrupt
+
+    func interruptSpeaking() {
+        speechManager.stopSpeaking()
+        state = .idle
+        print("[Session] Speaking interrupted by user")
+    }
+
+    // MARK: - Voice
+
+    func toggleListening() {
+        if speechManager.isListening {
+            speechManager.stopListening()
+            state = .idle
+        } else {
+            startListening()
+        }
+    }
+
+    func startListening() {
+        if speechManager.isSpeaking {
+            speechManager.stopSpeaking()
+        }
+        do {
+            try speechManager.startListening()
+            state = .listening
+            errorMessage = nil
+        } catch {
+            errorMessage = "Mic: \(error.localizedDescription)"
+        }
     }
 
     private func setupBindings() {
@@ -98,111 +252,6 @@ class SessionViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // MARK: - Frame Source
-
-    private func switchFrameSource() {
-        cameraManager.stop()
-        rayBanManager.stop()
-
-        // Re-route audio when switching sources
-        if activeFrameSource == .rayBan {
-            AudioSessionManager.shared.routeToBluetoothMicIfAvailable()
-            // Auto-start listening in glasses mode (hands-free)
-            if isConnected && !speechManager.isListening {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                    self?.startListening()
-                }
-            }
-        }
-        startActiveFrameSource()
-    }
-
-    private func startActiveFrameSource() {
-        do {
-            switch activeFrameSource {
-            case .iPhone:
-                cameraManager.configure(frameInterval: config.videoFrameInterval, jpegQuality: config.videoJPEGQuality)
-                try cameraManager.start()
-                frameSourceStatus = .connected
-            case .rayBan:
-                rayBanManager.configure(frameInterval: config.videoFrameInterval, jpegQuality: config.videoJPEGQuality)
-                try rayBanManager.start()
-                // Status updated async by RayBanManager
-            }
-            errorMessage = nil
-        } catch {
-            frameSourceStatus = .error(error.localizedDescription)
-            errorMessage = error.localizedDescription
-            if activeFrameSource == .rayBan {
-                // Don't auto-switch, let user see the error
-            }
-        }
-    }
-
-    // MARK: - Connection
-
-    func connect() async {
-        errorMessage = nil
-        do {
-            let health = try await bridge.checkHealth()
-            if health.status == "ok" {
-                isConnected = true
-                state = .idle
-
-                try AudioSessionManager.shared.configureForVoiceChat()
-                startActiveFrameSource()
-            }
-        } catch {
-            errorMessage = "Gateway: \(error.localizedDescription)"
-            state = .disconnected
-            isConnected = false
-        }
-    }
-
-    func disconnect() {
-        speechManager.stopListening()
-        speechManager.stopSpeaking()
-        cameraManager.stop()
-        rayBanManager.stop()
-        frameSourceStatus = .disconnected
-        state = .disconnected
-        isConnected = false
-    }
-
-    // MARK: - Interrupt
-
-    /// Stop Claude from speaking and go back to idle (or start listening)
-    func interruptSpeaking() {
-        speechManager.stopSpeaking()
-        state = .idle
-        print("[Session] Speaking interrupted by user")
-    }
-
-    // MARK: - Voice
-
-    func toggleListening() {
-        if speechManager.isListening {
-            speechManager.stopListening()
-            state = .idle
-        } else {
-            startListening()
-        }
-    }
-
-    func startListening() {
-        if speechManager.isSpeaking {
-            speechManager.stopSpeaking()
-        }
-
-        do {
-            try speechManager.startListening()
-            state = .listening
-            errorMessage = nil
-        } catch {
-            errorMessage = "Mic: \(error.localizedDescription)"
-        }
-    }
-
     // MARK: - Send Message
 
     func sendText(_ text: String) async {
@@ -219,41 +268,53 @@ class SessionViewModel: ObservableObject {
         state = .thinking
         errorMessage = nil
 
-        // Grab latest camera frame
-        var images: [Data] = []
+        // Grab latest frame
+        var image: Data?
+        let source: String
         switch activeFrameSource {
         case .iPhone:
-            if let frame = cameraManager.consumeFrame() {
-                images.append(frame)
-            }
+            image = cameraManager.consumeFrame()
+            source = "iphone"
         case .rayBan:
-            if let frame = rayBanManager.consumeFrame() {
-                images.append(frame)
+            image = rayBanManager.consumeFrame()
+            source = "rayban"
+        }
+
+        if bridge.mode == .channel {
+            // Channel mode: send via WebSocket or HTTP upload
+            if let imageData = image, imageData.count > 100_000 {
+                // Large images: use HTTP multipart (avoids base64 bloat)
+                do {
+                    try await bridge.uploadImage(text: text, image: imageData, source: source)
+                } catch {
+                    print("[Session] Upload error, falling back to WS: \(error)")
+                    bridge.sendMessage(text: text, image: imageData, source: source)
+                }
+            } else {
+                // Small images or text-only: send via WebSocket
+                bridge.sendMessage(text: text, image: image, source: source)
             }
+            print("[Session] Sent to channel: \"\(text)\" with \(image != nil ? "image" : "no image")")
+            // Reply comes back via onReply callback — don't set isProcessing = false here
+
+        } else {
+            // Gateway mode: REST fallback
+            do {
+                let response = try await bridge.chatREST(text: text, images: image.map { [$0] } ?? [])
+                transcript.append(TranscriptMessage(
+                    role: .assistant,
+                    text: response.text,
+                    toolCalls: response.tool_calls
+                ))
+                state = .speaking
+                speechManager.speak(response.text)
+                observeSpeechCompletion()
+            } catch {
+                errorMessage = error.localizedDescription
+                state = .idle
+            }
+            isProcessing = false
         }
-
-        do {
-            print("[Session] Sending to gateway: \"\(text)\" with \(images.count) image(s)")
-            let response = try await bridge.chat(text: text, images: images)
-            print("[Session] Got response: \"\(response.text.prefix(80))...\"")
-
-            transcript.append(TranscriptMessage(
-                role: .assistant,
-                text: response.text,
-                toolCalls: response.tool_calls
-            ))
-
-            state = .speaking
-            speechManager.speak(response.text)
-            observeSpeechCompletion()
-
-        } catch {
-            print("[Session] Error: \(error)")
-            errorMessage = error.localizedDescription
-            state = .idle
-        }
-
-        isProcessing = false
     }
 
     private func observeSpeechCompletion() {
@@ -271,7 +332,7 @@ class SessionViewModel: ObservableObject {
 
     func resetConversation() async {
         transcript.removeAll()
-        await bridge.resetConversation()
+        bridge.resetConversation()
         errorMessage = nil
     }
 }

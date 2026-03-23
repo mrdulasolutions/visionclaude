@@ -49,6 +49,11 @@
   .pulse { animation: pulse 2s infinite; }
   @keyframes glow { 0%,100% { text-shadow: 0 0 10px rgba(232,123,53,0.5); } 50% { text-shadow: 0 0 20px rgba(232,123,53,0.8), 0 0 40px rgba(232,123,53,0.3); } }
   .glow { animation: glow 3s infinite; }
+  .blurred { filter: blur(8px); transition: filter 0.3s; user-select: none; }
+  .blurred.revealed { filter: none; user-select: all; }
+  .reveal-btn { font-family: inherit; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer;
+    border: 1px solid #333; background: #1a1a1a; color: #888; transition: all 0.2s; margin-left: 8px; }
+  .reveal-btn:hover { border-color: #E87B35; color: #E87B35; }
 </style>
 </head><body>
 <div class="scanline"></div>
@@ -82,20 +87,22 @@
 
   <div class="card token-card">
     <div class="card-header"><span class="icon">▸</span> 🔐 CHANNEL TOKEN</div>
-    <div class="token-value glow" id="token" onclick="copy('token')">loading...</div>
+    <div class="token-value glow blurred" id="token" onclick="copy('token')">loading...</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="copy('token')" id="copy-token-btn">📋 Copy Token</button>
+      <button class="reveal-btn" onclick="toggleReveal('token',this)">👁 Reveal</button>
     </div>
   </div>
 
   <div class="card">
     <div class="card-header"><span class="icon">▸</span> 📱 iOS APP CONNECTION</div>
-    <div class="status-row"><span class="status-label">Host (Mac IP)</span><span class="status-value" style="color:#4ade80;cursor:pointer" id="ip" onclick="copy('ip')">detecting...</span></div>
+    <div class="status-row"><span class="status-label">Host (Mac IP)</span><span class="status-value blurred" style="color:#4ade80;cursor:pointer" id="ip" onclick="copy('ip')">detecting...</span></div>
     <div class="status-row"><span class="status-label">Port</span><span class="status-value" id="port-display">18790</span></div>
-    <div class="status-row"><span class="status-label">WebSocket</span><span class="status-value" id="ws-url" style="font-size:11px">ws://...</span></div>
+    <div class="status-row"><span class="status-label">WebSocket</span><span class="status-value blurred" id="ws-url" style="font-size:11px">ws://...</span></div>
     <div class="btn-row" style="margin-top:8px">
       <button class="btn" onclick="copy('ip')" id="copy-ip-btn">📋 Copy IP</button>
       <button class="btn" onclick="copyAll()" id="copy-all-btn">📋 Copy All Settings</button>
+      <button class="reveal-btn" onclick="toggleRevealAll(this)">👁 Reveal All</button>
     </div>
   </div>
 
@@ -154,6 +161,8 @@ fetch('/health').then(r=>r.json()).then(d=>{document.getElementById('tts-status'
 setInterval(()=>{fetch('/health').then(r=>r.json()).then(d=>{document.getElementById('clients').innerHTML='<span class="dot '+(d.clients>0?'dot-green':'dot-yellow')+'"></span>'+d.clients+' connected'}).catch(()=>{})},3000);
 
 function copy(id){var t=document.getElementById(id).textContent;navigator.clipboard.writeText(t).then(()=>{var btn=document.getElementById('copy-'+id+'-btn');if(btn){var o=btn.textContent;btn.textContent='✅ Copied!';setTimeout(()=>btn.textContent=o,2000)}})}
+function toggleReveal(id,btn){var el=document.getElementById(id);el.classList.toggle('revealed');btn.textContent=el.classList.contains('revealed')?'🙈 Hide':'👁 Reveal'}
+function toggleRevealAll(btn){var els=document.querySelectorAll('#ip,#ws-url');var show=!els[0].classList.contains('revealed');els.forEach(el=>{show?el.classList.add('revealed'):el.classList.remove('revealed')});btn.textContent=show?'🙈 Hide All':'👁 Reveal All'}
 function copyAll(){var token=document.getElementById('token').textContent;var ip=document.getElementById('ip').textContent;var port=document.getElementById('port').textContent;navigator.clipboard.writeText('Host: '+ip+'\nPort: '+port+'\nToken: '+token).then(()=>{var b=document.getElementById('copy-all-btn');b.textContent='✅ Copied!';setTimeout(()=>b.textContent='📋 Copy All Settings',2000)})}
 function sendMsg(){var input=document.getElementById('msg-input');var text=input.value.trim();if(!text)return;var status=document.getElementById('msg-status');status.textContent='Sending...';status.style.color='#E87B35';fetch('/message',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:JSON.stringify({text:text,source:'mac'})}).then(r=>r.json()).then(d=>{if(d.ok){var c=d.clients||0;status.textContent=c>0?'✅ Delivered to '+c+' client'+(c>1?'s':''):'⚠️ Sent but no clients connected';status.style.color=c>0?'#4ade80':'#facc15';input.value='';loadActivity()}else{status.textContent='❌ Failed';status.style.color='#f87171'}}).catch(e=>{status.textContent='❌ '+e.message;status.style.color='#f87171'});setTimeout(()=>{status.textContent=''},5000)}
 

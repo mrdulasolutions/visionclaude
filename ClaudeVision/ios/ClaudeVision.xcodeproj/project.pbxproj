@@ -26,6 +26,7 @@
 		9864E1522823865D7292FA82 /* ClaudeVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80B4A559F7D180D8DCE6033 /* ClaudeVisionApp.swift */; };
 		A2C392605B594915241F310C /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485A5E24F72ECE1BCAB326AD /* ChatModels.swift */; };
 		C7D9F412F3607F657FC2F90A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D88A83F09D5107BD2F91B6 /* ContentView.swift */; };
+		E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,10 +42,11 @@
 		704D8A46187AD105F8BE0E3F /* FrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameSource.swift; sourceTree = "<group>"; };
 		8206037DFED6213BCCDF3719 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		92D88A83F09D5107BD2F91B6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		98E55A0878E3210165D23655 /* ClaudeVision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		98E55A0878E3210165D23655 /* ClaudeVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0BC356D66DFF1B96A3C1699 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		D1533204F4B0090BB686560D /* AudioSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionManager.swift; sourceTree = "<group>"; };
 		D80B4A559F7D180D8DCE6033 /* ClaudeVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeVisionApp.swift; sourceTree = "<group>"; };
+		E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RayBanDiagnosticsView.swift; sourceTree = "<group>"; };
 		ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		F0160BE25F91F5DE8B717653 /* RayBanManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RayBanManager.swift; sourceTree = "<group>"; };
 		F97A69C4B33A208E5B740199 /* ModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeManager.swift; sourceTree = "<group>"; };
@@ -86,6 +88,7 @@
 			isa = PBXGroup;
 			children = (
 				92D88A83F09D5107BD2F91B6 /* ContentView.swift */,
+				E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */,
 				04B5455D3CE56E037F92BB98 /* SettingsView.swift */,
 				D0BC356D66DFF1B96A3C1699 /* TranscriptView.swift */,
 			);
@@ -176,6 +179,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					19BFFEED1742A8DB7B08397C = {
+						DevelopmentTeam = RT57WEU2RX;
+					};
+				};
 			};
 			buildConfigurationList = E98FB211CB3D4B4671DFCB6E /* Build configuration list for PBXProject "ClaudeVision" */;
 			developmentRegion = en;
@@ -225,6 +233,7 @@
 				C7D9F412F3607F657FC2F90A /* ContentView.swift in Sources */,
 				2F08588A0FA5377BED01C1DB /* FrameSource.swift in Sources */,
 				469CFAAD6292414FB1833B6F /* ModeManager.swift in Sources */,
+				E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */,
 				7B9EB5C35AA99FFC8E91F8B2 /* RayBanManager.swift in Sources */,
 				25A8B74F9507C6E8039685DE /* SessionViewModel.swift in Sources */,
 				856B82DACC849A0DC24A9525 /* SettingsView.swift in Sources */,
@@ -306,7 +315,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 29QYBJKC4C;
+				DEVELOPMENT_TEAM = RT57WEU2RX;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ClaudeVision/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -314,7 +323,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.claudevision.app;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hyperfood.claudevision;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -383,7 +392,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 29QYBJKC4C;
+				DEVELOPMENT_TEAM = RT57WEU2RX;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ClaudeVision/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -391,7 +400,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.claudevision.app;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hyperfood.claudevision;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;

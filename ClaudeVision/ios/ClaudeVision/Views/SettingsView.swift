@@ -5,7 +5,7 @@ struct SettingsView: View {
     @Binding var activeFrameSource: FrameSourceType
     let isConnected: Bool
     let frameSourceStatus: FrameSourceStatus
-    let rayBanManager: RayBanManager
+    @ObservedObject var rayBanManager: RayBanManager
     @ObservedObject var modeManager: ModeManager
     let onConnect: () -> Void
     let onConnectGlasses: () -> Void
@@ -398,6 +398,15 @@ struct SettingsView: View {
                 Text(rayBanManager.isRegistered ? "Registered" : "Not Registered")
                     .font(.subheadline)
                     .foregroundStyle(rayBanManager.isRegistered ? .green : accentColor)
+            }
+
+            // Live pipeline diagnostics (only relevant when glasses are the active source)
+            if activeFrameSource == .rayBan {
+                RayBanDiagnosticsView(
+                    rayBanManager: rayBanManager,
+                    frameSourceStatus: frameSourceStatus
+                )
+                .padding(.vertical, 4)
             }
 
             // Connect button

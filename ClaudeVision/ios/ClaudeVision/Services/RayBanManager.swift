@@ -364,8 +364,9 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     }
 
     func stop() {
-        stream?.stop()
-        deviceSession?.stop()
+        // Cancel the observers BEFORE stopping the session. Otherwise the session's
+        // async `.stopping` event lands after this method sets .disconnected and
+        // strands connectionStatus at .connecting, which blocks the next start.
         stateToken = nil
         frameToken = nil
         errorToken = nil
@@ -375,6 +376,8 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         sessionStateTask = nil
         sessionErrorTask?.cancel()
         sessionErrorTask = nil
+        stream?.stop()
+        deviceSession?.stop()
         streamAdded = false
         // Glasses no longer streaming — allow voice audio to use them again.
         AudioSessionManager.shared.reserveGlassesForCamera = false

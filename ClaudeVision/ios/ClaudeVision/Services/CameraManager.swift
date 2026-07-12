@@ -146,6 +146,10 @@ class CameraManager: NSObject, ObservableObject, FrameSource {
         captureSession.stopRunning()
         isRunning = false
         connectionStatus = .disconnected
+        // Drop stale frames so an on-demand capture after restart never
+        // sends an image from a previous streaming window.
+        latestFrame = nil
+        latestImage = nil
     }
 
     func consumeFrame() -> Data? {

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0B0D43D05DD7AA9061DBBC52 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 56D471E4C1D0316E974B9E9D /* MWDATCore */; };
 		1A238EAD9D1126CF37177585 /* ClaudeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0730CD29BE25A17AA11DBD6B /* ClaudeConfig.swift */; };
+		1FCF6858A2A8ECA1CCCFD4FA /* QuestionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */; };
 		25A8B74F9507C6E8039685DE /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FAB5518FCC84C79B8DCA9A /* SessionViewModel.swift */; };
 		26DF4D6AB4300A244E2F9993 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = F89EE55D2F5EFD824C5EAAA1 /* MWDATCamera */; };
 		2F08588A0FA5377BED01C1DB /* FrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D8A46187AD105F8BE0E3F /* FrameSource.swift */; };
@@ -36,6 +37,7 @@
 		43B211DB3670DC6B1096A7F0 /* VisionMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionMode.swift; sourceTree = "<group>"; };
 		485A5E24F72ECE1BCAB326AD /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
 		57FAB5518FCC84C79B8DCA9A /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
+		5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRouter.swift; sourceTree = "<group>"; };
 		5F8AA23E7B6922ACB9BDD28E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6399D29511D56878F01F5204 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		6CC34BA60D99796648D08667 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 				6399D29511D56878F01F5204 /* CameraManager.swift */,
 				3F3069E25AC77AD72DFEB548 /* ClaudeBridge.swift */,
 				704D8A46187AD105F8BE0E3F /* FrameSource.swift */,
+				5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */,
 				F0160BE25F91F5DE8B717653 /* RayBanManager.swift */,
 				ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */,
 			);
@@ -233,6 +236,7 @@
 				C7D9F412F3607F657FC2F90A /* ContentView.swift in Sources */,
 				2F08588A0FA5377BED01C1DB /* FrameSource.swift in Sources */,
 				469CFAAD6292414FB1833B6F /* ModeManager.swift in Sources */,
+				1FCF6858A2A8ECA1CCCFD4FA /* QuestionRouter.swift in Sources */,
 				E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */,
 				7B9EB5C35AA99FFC8E91F8B2 /* RayBanManager.swift in Sources */,
 				25A8B74F9507C6E8039685DE /* SessionViewModel.swift in Sources */,

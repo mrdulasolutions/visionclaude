@@ -231,7 +231,7 @@ Restart the gateway after changes: `lsof -ti:18790 | xargs kill -9 && npm start`
 1. Install **Meta AI** app → pair glasses via Bluetooth
 2. **Developer Mode**: Meta AI → Settings → your glasses → Developer Mode → ON
 3. Restart glasses (hold button 15s to power off, press to power on)
-4. Register at [developers.meta.com](https://developers.meta.com): Create app → Wearables → iOS config (Team ID + Bundle ID `com.claudevision.app`) → create version → assign to release channel
+4. Register at [developers.meta.com](https://developers.meta.com): Create app → Wearables → iOS config (Team ID + Bundle ID `co.hyperfood.claudevision`) → create version → assign to release channel
 5. In VisionClaude: Settings → **Connect Glasses via Meta AI** → Approve
 6. Switch camera source to **Meta Ray-Ban**
 

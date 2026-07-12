@@ -564,7 +564,7 @@ build_ios() {
         echo -e "  ${WHITE}Step 8:${RESET} Create a new app → select \"Wearables\""
         echo -e "  ${WHITE}Step 9:${RESET} In App Configuration → iOS → Add app details:"
         echo -e "         ${DIM}• Team ID: your Apple Developer Team ID${RESET}"
-        echo -e "         ${DIM}• Bundle ID: ${LIGHT_ORANGE}com.claudevision.app${RESET}"
+        echo -e "         ${DIM}• Bundle ID: ${LIGHT_ORANGE}co.hyperfood.claudevision${RESET}"
         echo -e "         ${DIM}• Universal link: leave blank${RESET}"
         echo -e "  ${WHITE}Step 10:${RESET} Create a version and assign to a release channel"
         echo ""

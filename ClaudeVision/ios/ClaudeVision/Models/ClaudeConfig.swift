@@ -1,7 +1,7 @@
 import Foundation
 
 struct ClaudeConfig: Codable {
-    var gatewayHost: String = "MR-DULA-SOLUTIONS.local"
+    var gatewayHost: String = "Davids-MacBook-Air.local"
     var gatewayPort: Int = 18790
     var videoFrameInterval: TimeInterval = 1.0
     var videoJPEGQuality: Double = 0.85

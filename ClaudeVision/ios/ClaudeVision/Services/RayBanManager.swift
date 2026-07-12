@@ -181,12 +181,11 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     private func buildAndStartSession() {
         streamAdded = false
 
-        // Reserve the glasses for the camera and move the mic off them NOW. The glasses
-        // can't be an HFP call mic and a DAT camera at once — leaving the mic on the glasses
-        // makes the camera session immediately stop. Re-applying the audio config here drops
-        // HFP before we start the session.
-        AudioSessionManager.shared.reserveGlassesForCamera = true
-        try? AudioSessionManager.shared.configureForVoiceChat()
+        // TEST: allow voice to keep using the Meta glasses microphone (Bluetooth HFP) while
+        // the camera streams, to check whether the two can actually coexist. If the camera
+        // session starts dropping again, flip this back to `true` — the reservation mechanism
+        // in AudioSessionManager is retained.
+        AudioSessionManager.shared.reserveGlassesForCamera = false
 
         let wearables = Wearables.shared
 

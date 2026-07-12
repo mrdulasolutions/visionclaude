@@ -221,7 +221,12 @@ class SpeechManager: NSObject, ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Audio input not ready — try again"])
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
+        // Pass `nil` (not the captured `recordingFormat`) so the engine resolves the
+        // bus's CURRENT native format at install time. If the route changes between the
+        // read above and here — e.g. Bluetooth HFP glasses (16kHz) dropping to the iPhone
+        // mic (48kHz) — a captured format would no longer match the live bus and
+        // installTap throws an uncatchable NSException (SIGABRT). nil closes that window.
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
         }
 

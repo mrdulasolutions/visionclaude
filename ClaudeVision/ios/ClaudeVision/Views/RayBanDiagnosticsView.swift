@@ -28,6 +28,21 @@ struct RayBanDiagnosticsView: View {
                 level: rayBanManager.hasActiveDevice ? .ok : .waiting
             )
             row(
+                title: "Devices seen by DAT",
+                value: "\(rayBanManager.datDeviceCount)",
+                level: rayBanManager.datDeviceCount > 0 ? .ok : .blocked
+            )
+            row(
+                title: "Link state",
+                value: rayBanManager.deviceLinkState,
+                level: rayBanManager.deviceLinkState.lowercased().contains("connected") ? .ok : .waiting
+            )
+            row(
+                title: "Compatibility",
+                value: rayBanManager.deviceCompatibility,
+                level: compatibilityLevel
+            )
+            row(
                 title: "Stream state",
                 value: rayBanManager.streamState,
                 level: streamLevel
@@ -93,6 +108,13 @@ struct RayBanDiagnosticsView: View {
         let p = rayBanManager.cameraPermission.lowercased()
         if p.contains("grant") { return .ok }
         if p.contains("deny") || p.contains("error") { return .blocked }
+        return .waiting
+    }
+
+    private var compatibilityLevel: Level {
+        let c = rayBanManager.deviceCompatibility.lowercased()
+        if c.contains("compatible") && !c.contains("in") { return .ok }   // "compatible" but not "incompatible"
+        if c.contains("update") || c.contains("no device") { return .blocked }
         return .waiting
     }
 

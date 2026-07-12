@@ -4,13 +4,30 @@ import AVFoundation
 class AudioSessionManager {
     static let shared = AudioSessionManager()
 
+    /// When true, the Meta Ray-Ban glasses are streaming their camera, so audio MUST stay
+    /// on the iPhone. Engaging the glasses over Bluetooth HFP (call mode) is mutually
+    /// exclusive with DAT camera streaming — it puts the glasses in a state that kills the
+    /// camera session. Set true while the glasses camera is active, false otherwise.
+    var reserveGlassesForCamera = false
+
     private init() {
         setupNotifications()
     }
 
-    /// Configure for voice chat with Bluetooth mic support (Meta Ray-Ban glasses)
+    /// Configure for voice chat. Uses the glasses' Bluetooth mic when available, UNLESS the
+    /// glasses are reserved for camera streaming — in which case all audio stays on the iPhone.
     func configureForVoiceChat() throws {
         let session = AVAudioSession.sharedInstance()
+
+        if reserveGlassesForCamera {
+            // Keep ALL audio on the iPhone — no Bluetooth HFP — so the glasses stay free to
+            // stream the camera. (HFP call mode would immediately stop the DAT camera session.)
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker])
+            try session.setActive(true)
+            routeToBuiltInMic()
+            print("[Audio] Glasses reserved for camera — audio kept on iPhone (no HFP)")
+            return
+        }
 
         // .allowBluetooth = HFP (Hands-Free Profile) — enables Bluetooth MIC INPUT
         // .allowBluetoothA2DP = A2DP — high-quality Bluetooth OUTPUT only
@@ -27,8 +44,24 @@ class AudioSessionManager {
         routeToBluetoothMicIfAvailable()
     }
 
+    /// Force audio input to the built-in iPhone mic (used when glasses are reserved for camera).
+    private func routeToBuiltInMic() {
+        let session = AVAudioSession.sharedInstance()
+        guard let inputs = session.availableInputs else { return }
+        if let builtIn = inputs.first(where: { $0.portType == .builtInMic }) {
+            try? session.setPreferredInput(builtIn)
+            print("[Audio] Mic forced to iPhone: \(builtIn.portName)")
+        }
+    }
+
     /// Route audio input to Bluetooth mic (glasses) if available
     func routeToBluetoothMicIfAvailable() {
+        // Never grab the glasses' mic while they're reserved for camera streaming.
+        if reserveGlassesForCamera {
+            routeToBuiltInMic()
+            return
+        }
+
         let session = AVAudioSession.sharedInstance()
         guard let availableInputs = session.availableInputs else {
             print("[Audio] No available inputs found")

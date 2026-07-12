@@ -28,16 +28,22 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     @Published var cameraPermission: String = "unknown"
     @Published var streamState: String = "—"
     @Published var lastError: String = ""
+    @Published var datDeviceCount: Int = 0
+    @Published var deviceCompatibility: String = "—"
+    @Published var deviceLinkState: String = "—"
 
     // DAT SDK
     private var deviceSession: DeviceSession?
     private var stream: MWDATCamera.Stream?
-    private var deviceSelector: AutoDeviceSelector?
+    private var deviceSelector: (any DeviceSelector)?
     private var stateToken: AnyListenerToken?
     private var frameToken: AnyListenerToken?
     private var errorToken: AnyListenerToken?
     private var deviceMonitorTask: Task<Void, Never>?
+    private var sessionStateTask: Task<Void, Never>?
+    private var sessionErrorTask: Task<Void, Never>?
     private var registrationTask: Task<Void, Never>?
+    private var streamAdded = false
 
     private var frameInterval: TimeInterval = 1.0
     private var jpegQuality: CGFloat = 0.5
@@ -127,54 +133,185 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         connectionStatus = .connecting
         print("[RayBan] Starting stream session...")
 
+        // ORDER MATTERS: the camera stream capability is permission-gated — addStream()
+        // returns nil until camera permission is granted (SDK: "streaming status is set
+        // to stopped if permission is not granted"). So request permission FIRST, then
+        // build the session and add the stream. (Previously permission was requested
+        // AFTER addStream, so addStream always returned nil and the code returned early
+        // before ever asking — a deadlock.)
+        Task { @MainActor in
+            guard await self.ensureCameraPermission() else { return }
+            self.buildAndStartSession()
+        }
+    }
+
+    /// Checks camera permission and requests it if needed (opens Meta AI). Returns true when
+    /// the stream may proceed (granted, or a permission-check error under Developer Mode).
+    private func ensureCameraPermission() async -> Bool {
         let wearables = Wearables.shared
-        let selector = AutoDeviceSelector(wearables: wearables)
+        do {
+            print("[RayBan] Checking camera permission...")
+            let status = try await wearables.checkPermissionStatus(.camera)
+            print("[RayBan] Camera permission status: \(status)")
+            self.cameraPermission = "\(status)"
+            if status == .granted { return true }
+
+            print("[RayBan] Requesting camera permission (will open Meta AI)...")
+            let result = try await wearables.requestPermission(.camera)
+            print("[RayBan] Permission result: \(result)")
+            self.cameraPermission = "\(result)"
+            if result == .granted { return true }
+
+            print("[RayBan] Camera permission denied by user")
+            self.connectionStatus = .error("Camera permission denied. Grant in Meta AI app.")
+            return false
+        } catch {
+            print("[RayBan] Permission error: \(error)")
+            self.cameraPermission = "error: \(error.localizedDescription)"
+            // Developer Mode may bypass permissions — proceed and let the stream verdict decide.
+            print("[RayBan] Proceeding despite permission error (Developer Mode may bypass)...")
+            return true
+        }
+    }
+
+    /// Builds and starts the camera stream. Camera permission must already be resolved.
+    /// Correct DAT ordering (per SDK sample): createSession → deviceSession.start() →
+    /// wait for session state `.started` → addStream() → stream.start().
+    /// addStream() returns nil if called before the session is `.started`.
+    private func buildAndStartSession() {
+        streamAdded = false
+
+        // Reserve the glasses for the camera and move the mic off them NOW. The glasses
+        // can't be an HFP call mic and a DAT camera at once — leaving the mic on the glasses
+        // makes the camera session immediately stop. Re-applying the audio config here drops
+        // HFP before we start the session.
+        AudioSessionManager.shared.reserveGlassesForCamera = true
+        try? AudioSessionManager.shared.configureForVoiceChat()
+
+        let wearables = Wearables.shared
+
+        // Resolve a concrete device. A SpecificDeviceSelector bound to a known id avoids
+        // AutoDeviceSelector's async selection race, which threw `noEligibleDevice` when
+        // createSession ran before the selector had picked a device.
+        let knownDevices = wearables.devices
+        self.datDeviceCount = knownDevices.count
+        print("[RayBan] DAT known devices: \(knownDevices.count)")
+
+        guard let deviceId = knownDevices.first else {
+            self.deviceCompatibility = "DAT sees no device"
+            self.deviceLinkState = "—"
+            print("[RayBan] DAT sees NO device — cannot stream")
+            connectionStatus = .error("Glasses not available. Check the Meta AI app connection.")
+            return
+        }
+
+        if let device = wearables.deviceForIdentifier(deviceId) {
+            let compat = device.compatibility()
+            self.glassesName = device.nameOrId()
+            self.deviceCompatibility = compat.displayString
+            self.deviceLinkState = "\(device.linkState)"
+            print("[RayBan] Device '\(device.nameOrId())' type=\(device.deviceType().rawValue) link=\(device.linkState) compatibility=\(compat.displayString)")
+            if compat != .compatible {
+                self.lastError = "Compatibility: \(compat.displayString)"
+            }
+        }
+
+        let selector = SpecificDeviceSelector(device: deviceId)
         self.deviceSelector = selector
 
-        // Stream at 30fps, high resolution (720x1280)
-        let config = StreamConfiguration(
-            videoCodec: .raw,
-            resolution: .high,
-            frameRate: 30
-        )
-
-        // New DAT API: create a DeviceSession, then add a camera stream capability to it.
+        // Create the session, then START it. The stream can only be added once the
+        // session reaches `.started`.
         let deviceSession: DeviceSession
-        let session: MWDATCamera.Stream
         do {
             deviceSession = try wearables.createSession(deviceSelector: selector)
-            guard let stream = try deviceSession.addStream(config: config) else {
-                print("[RayBan] addStream returned nil")
-                connectionStatus = .error("Failed to add camera stream to session")
-                return
-            }
-            session = stream
         } catch {
-            print("[RayBan] Failed to create session/stream: \(error)")
-            // Surface the raw reason (e.g. "noEligibleDevice") — this path fails before
-            // the camera-permission step, so it's the most common real blocker.
+            print("[RayBan] createSession failed: \(error)")
             self.lastError = "Session: \(error)"
             connectionStatus = .error("Failed to start glasses session: \(error.localizedDescription)")
             return
         }
         self.deviceSession = deviceSession
-        self.stream = session
+
+        // Observe session state + errors BEFORE start(), so we never miss the `.started`
+        // transition and so any DeviceSessionError explaining a stop is captured.
+        sessionStateTask = Task { @MainActor in
+            for await state in deviceSession.stateStream() {
+                print("[RayBan] Session state: \(state)")
+                switch state {
+                case .started:
+                    self.addStreamOnce(to: deviceSession)
+                case .stopped:
+                    self.connectionStatus = .disconnected
+                default:
+                    self.connectionStatus = .connecting
+                }
+            }
+        }
+
+        sessionErrorTask = Task { @MainActor in
+            for await err in deviceSession.errorStream() {
+                print("[RayBan] Session ERROR: \(err)")
+                self.lastError = "Session error: \(err)"
+                if err == .datAppOnTheGlassesUpdateRequired {
+                    // A camera-access app runs ON the glasses (separate from firmware) and it's
+                    // out of date — the SDK stops the session until it's updated. Send the user
+                    // straight to the update flow in Meta AI.
+                    self.connectionStatus = .error("Glasses app update required — opening Meta AI to update.")
+                    print("[RayBan] Opening DAT glasses-app update flow...")
+                    try? await Wearables.shared.openDATGlassesAppUpdate()
+                } else {
+                    self.connectionStatus = .error("Glasses session error: \(err)")
+                }
+            }
+        }
 
         // Monitor device availability
         deviceMonitorTask = Task { @MainActor in
             for await device in selector.activeDeviceStream() {
                 self.hasActiveDevice = device != nil
-                if device != nil {
-                    self.glassesName = "Ray-Ban Meta"
-                    print("[RayBan] Device active")
-                } else {
-                    self.glassesName = "No Device"
-                    print("[RayBan] No active device")
-                }
             }
         }
 
-        // State changes
+        // Now start the session — the observers above fire addStream on `.started`.
+        do {
+            try deviceSession.start()
+            print("[RayBan] Device session start() called")
+        } catch {
+            print("[RayBan] Device session start failed: \(error)")
+            self.lastError = "Session start: \(error)"
+            connectionStatus = .error("Could not start glasses session: \(error.localizedDescription)")
+            return
+        }
+    }
+
+    /// Adds the camera stream to an already-`.started` session, wires listeners, starts it.
+    private func addStreamOnce(to deviceSession: DeviceSession) {
+        guard !streamAdded else { return }
+        let config = StreamConfiguration(videoCodec: .raw, resolution: .high, frameRate: 30)
+        let session: MWDATCamera.Stream
+        do {
+            guard let stream = try deviceSession.addStream(config: config) else {
+                print("[RayBan] addStream returned nil (after .started)")
+                self.lastError = "addStream returned nil"
+                connectionStatus = .error("Failed to add camera stream")
+                return
+            }
+            session = stream
+        } catch {
+            print("[RayBan] addStream threw: \(error)")
+            self.lastError = "addStream: \(error)"
+            connectionStatus = .error("Failed to add camera stream: \(error.localizedDescription)")
+            return
+        }
+        streamAdded = true
+        self.stream = session
+        attachStreamListeners(session)
+        session.start()
+        print("[RayBan] Stream start() called, state: \(session.state)")
+    }
+
+    /// Wires up the camera stream's state / frame / error listeners.
+    private func attachStreamListeners(_ session: MWDATCamera.Stream) {
         stateToken = session.statePublisher.listen { [weak self] (state: StreamState) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -199,18 +336,12 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
             }
         }
 
-        // Video frames
         frameToken = session.videoFramePublisher.listen { [weak self] (videoFrame: VideoFrame) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-
                 guard let uiImage = videoFrame.makeUIImage() else { return }
-
-                // Always update preview
                 self.latestImage = uiImage
                 self.frameCount += 1
-
-                // Throttle JPEG for Claude
                 let now = Date()
                 if now.timeIntervalSince(self.lastCaptureTime) >= self.frameInterval {
                     self.lastCaptureTime = now
@@ -222,7 +353,6 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
             }
         }
 
-        // Errors
         errorToken = session.errorPublisher.listen { [weak self] (error: StreamError) in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -232,55 +362,6 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
                 self.connectionStatus = .error(msg)
             }
         }
-
-        // Request camera permission THEN start (matches VisionClaw pattern)
-        Task {
-            do {
-                let wearables = Wearables.shared
-                print("[RayBan] Checking camera permission...")
-                let status = try await wearables.checkPermissionStatus(.camera)
-                print("[RayBan] Camera permission status: \(status)")
-                self.cameraPermission = "\(status)"
-                if status == .granted {
-                    print("[RayBan] Camera permission already granted — starting session")
-                    self.startStreaming()
-                    return
-                }
-
-                print("[RayBan] Requesting camera permission (will open Meta AI)...")
-                let result = try await wearables.requestPermission(.camera)
-                print("[RayBan] Permission result: \(result)")
-                self.cameraPermission = "\(result)"
-                if result == .granted {
-                    print("[RayBan] Camera permission granted — starting session")
-                    self.startStreaming()
-                } else {
-                    print("[RayBan] Camera permission denied by user")
-                    self.connectionStatus = .error("Camera permission denied. Grant in Meta AI app.")
-                }
-            } catch {
-                print("[RayBan] Permission error: \(error)")
-                self.cameraPermission = "error: \(error.localizedDescription)"
-                // Try starting anyway — Developer Mode may bypass permissions
-                print("[RayBan] Attempting session start despite permission error...")
-                self.startStreaming()
-            }
-        }
-    }
-
-    /// Starts the device session (connects to the glasses) then the camera stream.
-    /// Call after camera permission has been resolved. Both calls are synchronous in the DAT SDK.
-    private func startStreaming() {
-        guard let deviceSession = self.deviceSession, let stream = self.stream else { return }
-        do {
-            try deviceSession.start()
-        } catch {
-            print("[RayBan] Device session start failed: \(error)")
-            connectionStatus = .error("Could not start glasses session: \(error.localizedDescription)")
-            return
-        }
-        stream.start()
-        print("[RayBan] Stream start() called, state: \(stream.state)")
     }
 
     func stop() {
@@ -291,6 +372,13 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         errorToken = nil
         deviceMonitorTask?.cancel()
         deviceMonitorTask = nil
+        sessionStateTask?.cancel()
+        sessionStateTask = nil
+        sessionErrorTask?.cancel()
+        sessionErrorTask = nil
+        streamAdded = false
+        // Glasses no longer streaming — allow voice audio to use them again.
+        AudioSessionManager.shared.reserveGlassesForCamera = false
         stream = nil
         deviceSession = nil
         deviceSelector = nil

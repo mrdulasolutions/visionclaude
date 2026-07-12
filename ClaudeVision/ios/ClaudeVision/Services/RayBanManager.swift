@@ -151,6 +151,9 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
             session = stream
         } catch {
             print("[RayBan] Failed to create session/stream: \(error)")
+            // Surface the raw reason (e.g. "noEligibleDevice") — this path fails before
+            // the camera-permission step, so it's the most common real blocker.
+            self.lastError = "Session: \(error)"
             connectionStatus = .error("Failed to start glasses session: \(error.localizedDescription)")
             return
         }

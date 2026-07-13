@@ -38,7 +38,7 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     private var deviceSelector: (any DeviceSelector)?
     private var stateToken: AnyListenerToken?
     private var frameToken: AnyListenerToken?
-    private var streamErrorToken: AnyListenerToken?
+    private var errorToken: AnyListenerToken?
     private var deviceMonitorTask: Task<Void, Never>?
     private var sessionStateTask: Task<Void, Never>?
     private var sessionErrorTask: Task<Void, Never>?
@@ -398,9 +398,7 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         // strands connectionStatus at .connecting, which blocks the next start.
         stateToken = nil
         frameToken = nil
-        streamErrorToken = nil
-        sessionStateToken = nil
-        sessionErrorToken = nil
+        errorToken = nil
         deviceMonitorTask?.cancel()
         deviceMonitorTask = nil
         sessionStateTask?.cancel()

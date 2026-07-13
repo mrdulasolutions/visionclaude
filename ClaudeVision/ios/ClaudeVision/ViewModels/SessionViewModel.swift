@@ -913,6 +913,46 @@ class SessionViewModel: ObservableObject {
         frameSourceStatus = .disconnected
     }
 
+    /// Venue data is stable for hours; refetch only after 10 minutes or a >250m move.
+    private func venueCacheIsStale(for location: CLLocation) -> Bool {
+        guard let last = lastVenueFetch, !lastVenues.isEmpty else { return true }
+        return Date().timeIntervalSince(last.time) > 600
+            || location.distance(from: last.location) > 250
+    }
+
+    /// Matches "navigate to <venue>", "take me to <venue>", "directions to <venue>"
+    /// against the venues from the last Trip search.
+    private func navigationTarget(for text: String) -> VenueFinderService.Venue? {
+        guard !lastVenues.isEmpty else { return nil }
+        let lowered = text.lowercased()
+        let triggers = ["navigate to ", "take me to ", "directions to ", "walk me to ", "go to "]
+        guard let trigger = triggers.first(where: { lowered.contains($0) }),
+              let range = lowered.range(of: trigger) else { return nil }
+        let spokenName = lowered[range.upperBound...]
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        guard !spokenName.isEmpty else { return nil }
+
+        return lastVenues.first { venue in
+            let name = venue.name.lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            return name.contains(spokenName) || spokenName.contains(name)
+        }
+    }
+
+    private var foodHealthProfile: String {
+        var concerns: [String] = []
+        if config.foodAvoidUPF { concerns.append("avoiding ultra-processed foods (NOVA 4)") }
+        if config.foodWatchSalt { concerns.append("watching salt intake") }
+        if config.foodWatchSaturatedFat { concerns.append("watching saturated fat") }
+        return concerns.isEmpty
+            ? "no specific restrictions configured — give balanced general advice"
+            : concerns.joined(separator: "; ")
+    }
+
     private func observeSpeechCompletion() {
         speechManager.$isSpeaking
             .dropFirst()

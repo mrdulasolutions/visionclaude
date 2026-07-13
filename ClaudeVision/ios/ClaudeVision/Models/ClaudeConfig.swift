@@ -12,6 +12,19 @@ struct ClaudeConfig: Codable {
     var wakeWordEnabled: Bool = true      // only send speech addressed with "hey claude"
     var onDemandCamera: Bool = true       // stream video only when a question needs vision
     var cameraIdleTimeout: TimeInterval = 30  // seconds before an on-demand stream shuts off
+    var plantNetAPIKey: String = ""
+
+    // Food mode health profile
+    var foodAvoidUPF: Bool = false
+    var foodWatchSalt: Bool = false
+    var foodWatchSaturatedFat: Bool = false
+
+    // Trip mode
+    var googlePlacesAPIKey: String = ""
+    var tripAdvisorAPIKey: String = ""
+
+    // Vehicle mode
+    var dvlaAPIKey: String = ""
 
     init() {}
 
@@ -31,12 +44,21 @@ struct ClaudeConfig: Codable {
         wakeWordEnabled = (try? c.decode(Bool.self, forKey: .wakeWordEnabled)) ?? d.wakeWordEnabled
         onDemandCamera = (try? c.decode(Bool.self, forKey: .onDemandCamera)) ?? d.onDemandCamera
         cameraIdleTimeout = (try? c.decode(TimeInterval.self, forKey: .cameraIdleTimeout)) ?? d.cameraIdleTimeout
+        plantNetAPIKey = (try? c.decode(String.self, forKey: .plantNetAPIKey)) ?? d.plantNetAPIKey
+        foodAvoidUPF = (try? c.decode(Bool.self, forKey: .foodAvoidUPF)) ?? d.foodAvoidUPF
+        foodWatchSalt = (try? c.decode(Bool.self, forKey: .foodWatchSalt)) ?? d.foodWatchSalt
+        foodWatchSaturatedFat = (try? c.decode(Bool.self, forKey: .foodWatchSaturatedFat)) ?? d.foodWatchSaturatedFat
+        googlePlacesAPIKey = (try? c.decode(String.self, forKey: .googlePlacesAPIKey)) ?? d.googlePlacesAPIKey
+        tripAdvisorAPIKey = (try? c.decode(String.self, forKey: .tripAdvisorAPIKey)) ?? d.tripAdvisorAPIKey
+        dvlaAPIKey = (try? c.decode(String.self, forKey: .dvlaAPIKey)) ?? d.dvlaAPIKey
     }
 
     private enum CodingKeys: String, CodingKey {
         case gatewayHost, gatewayPort, videoFrameInterval, videoJPEGQuality
         case speechPauseThreshold, elevenLabsAPIKey, elevenLabsVoiceId, channelToken
         case wakeWordEnabled, onDemandCamera, cameraIdleTimeout
+        case plantNetAPIKey, foodAvoidUPF, foodWatchSalt, foodWatchSaturatedFat
+        case googlePlacesAPIKey, tripAdvisorAPIKey, dvlaAPIKey
     }
 
     var baseURL: URL {

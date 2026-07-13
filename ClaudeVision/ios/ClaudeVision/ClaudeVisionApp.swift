@@ -4,12 +4,7 @@ import MWDATCore
 @main
 struct ClaudeVisionApp: App {
     init() {
-        do {
-            try Wearables.configure()
-            print("[App] DAT SDK configured")
-        } catch {
-            print("[App] DAT SDK configuration failed: \(error)")
-        }
+        RayBanManager.configureSDK()
     }
 
     var body: some Scene {
@@ -18,7 +13,8 @@ struct ClaudeVisionApp: App {
                 .preferredColorScheme(.dark)
                 .onOpenURL { url in
                     // Handle Meta AI callback after registration/permission
-                    guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                    guard RayBanManager.isSDKAvailable,
+                          let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
                           components.queryItems?.contains(where: { $0.name == "metaWearablesAction" }) == true
                     else {
                         return // Not a DAT SDK callback

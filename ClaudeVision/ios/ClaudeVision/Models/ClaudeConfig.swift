@@ -1,7 +1,7 @@
 import Foundation
 
 struct ClaudeConfig: Codable {
-    var gatewayHost: String = "MR-DULA-SOLUTIONS.local"
+    var gatewayHost: String = "Davids-MacBook-Pro-3.local"
     var gatewayPort: Int = 18790
     var videoFrameInterval: TimeInterval = 1.0
     var videoJPEGQuality: Double = 0.85
@@ -9,6 +9,42 @@ struct ClaudeConfig: Codable {
     var elevenLabsAPIKey: String = ""
     var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM" // Rachel (default)
     var channelToken: String = ""
+    var plantNetAPIKey: String = ""
+
+    // Food mode health profile
+    var foodAvoidUPF: Bool = false
+    var foodWatchSalt: Bool = false
+    var foodWatchSaturatedFat: Bool = false
+
+    // Trip mode
+    var googlePlacesAPIKey: String = ""
+    var tripAdvisorAPIKey: String = ""
+
+    // Vehicle mode
+    var dvlaAPIKey: String = ""
+
+    init() {}
+
+    // Tolerant decoding so configs saved before a field existed still load.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = ClaudeConfig()
+        gatewayHost = try c.decodeIfPresent(String.self, forKey: .gatewayHost) ?? defaults.gatewayHost
+        gatewayPort = try c.decodeIfPresent(Int.self, forKey: .gatewayPort) ?? defaults.gatewayPort
+        videoFrameInterval = try c.decodeIfPresent(TimeInterval.self, forKey: .videoFrameInterval) ?? defaults.videoFrameInterval
+        videoJPEGQuality = try c.decodeIfPresent(Double.self, forKey: .videoJPEGQuality) ?? defaults.videoJPEGQuality
+        speechPauseThreshold = try c.decodeIfPresent(TimeInterval.self, forKey: .speechPauseThreshold) ?? defaults.speechPauseThreshold
+        elevenLabsAPIKey = try c.decodeIfPresent(String.self, forKey: .elevenLabsAPIKey) ?? defaults.elevenLabsAPIKey
+        elevenLabsVoiceId = try c.decodeIfPresent(String.self, forKey: .elevenLabsVoiceId) ?? defaults.elevenLabsVoiceId
+        channelToken = try c.decodeIfPresent(String.self, forKey: .channelToken) ?? defaults.channelToken
+        plantNetAPIKey = try c.decodeIfPresent(String.self, forKey: .plantNetAPIKey) ?? defaults.plantNetAPIKey
+        foodAvoidUPF = try c.decodeIfPresent(Bool.self, forKey: .foodAvoidUPF) ?? defaults.foodAvoidUPF
+        foodWatchSalt = try c.decodeIfPresent(Bool.self, forKey: .foodWatchSalt) ?? defaults.foodWatchSalt
+        foodWatchSaturatedFat = try c.decodeIfPresent(Bool.self, forKey: .foodWatchSaturatedFat) ?? defaults.foodWatchSaturatedFat
+        googlePlacesAPIKey = try c.decodeIfPresent(String.self, forKey: .googlePlacesAPIKey) ?? defaults.googlePlacesAPIKey
+        tripAdvisorAPIKey = try c.decodeIfPresent(String.self, forKey: .tripAdvisorAPIKey) ?? defaults.tripAdvisorAPIKey
+        dvlaAPIKey = try c.decodeIfPresent(String.self, forKey: .dvlaAPIKey) ?? defaults.dvlaAPIKey
+    }
 
     var baseURL: URL {
         URL(string: "http://\(gatewayHost):\(gatewayPort)")!

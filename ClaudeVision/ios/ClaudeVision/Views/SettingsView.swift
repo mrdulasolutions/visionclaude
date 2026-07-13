@@ -41,6 +41,18 @@ struct SettingsView: View {
 
                 // -- ElevenLabs --
                 elevenLabsSection
+
+                // -- Pl@ntNet --
+                plantNetSection
+
+                // -- Food & Health --
+                foodHealthSection
+
+                // -- Trip Mode --
+                tripSection
+
+                // -- Vehicle Mode --
+                vehicleSection
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Settings")
@@ -538,6 +550,127 @@ struct SettingsView: View {
                 .font(.subheadline.weight(.semibold))
         } footer: {
             Text("Add an ElevenLabs API key to unlock premium text-to-speech voices with natural intonation.")
+        }
+    }
+
+    // MARK: - Pl@ntNet Section
+
+    private var plantNetSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                settingIcon("leaf.fill", color: .green)
+                Text("API Key")
+                Spacer()
+                SecureField("Pl@ntNet API key", text: $config.plantNetAPIKey)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+        } header: {
+            Label("Pl@ntNet", systemImage: "leaf.circle")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("Powers the Plants mode with species identification from Pl@ntNet. Get a free API key (500 IDs/day) at my.plantnet.org.")
+        }
+    }
+
+    // MARK: - Food & Health Section
+
+    private var foodHealthSection: some View {
+        Section {
+            Toggle(isOn: $config.foodAvoidUPF) {
+                HStack(spacing: 14) {
+                    settingIcon("exclamationmark.triangle.fill", color: .orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Avoid ultra-processed")
+                        Text("Flag NOVA group 4 foods (UPF)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Toggle(isOn: $config.foodWatchSalt) {
+                HStack(spacing: 14) {
+                    settingIcon("drop.fill", color: .orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Watch salt")
+                        Text("Flag high-sodium products")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Toggle(isOn: $config.foodWatchSaturatedFat) {
+                HStack(spacing: 14) {
+                    settingIcon("heart.fill", color: .orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Watch saturated fat")
+                        Text("Flag high saturated-fat products")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Label("Food & Health", systemImage: "fork.knife.circle")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("Food mode checks scanned products against these preferences using Open Food Facts data (no API key needed).")
+        }
+    }
+
+    // MARK: - Trip Mode Section
+
+    private var tripSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                settingIcon("key.fill", color: .teal)
+                Text("Google Places")
+                Spacer()
+                SecureField("API key (required)", text: $config.googlePlacesAPIKey)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            HStack(spacing: 14) {
+                settingIcon("key.fill", color: .teal)
+                Text("TripAdvisor")
+                Spacer()
+                SecureField("API key (optional)", text: $config.tripAdvisorAPIKey)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+        } header: {
+            Label("Trip Mode", systemImage: "map.circle")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("Trip mode finds top-rated restaurants, bars, and cafés within walking distance. Google Places powers the search (console.cloud.google.com); a TripAdvisor Content API key adds cross-source ratings (developer-tripadvisor.com).")
+        }
+    }
+
+    // MARK: - Vehicle Mode Section
+
+    private var vehicleSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                settingIcon("key.fill", color: .blue)
+                Text("DVLA VES")
+                Spacer()
+                SecureField("API key (required)", text: $config.dvlaAPIKey)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+        } header: {
+            Label("Vehicle Mode", systemImage: "car.circle")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("Vehicle mode reads UK number plates and checks tax and MOT status via the DVLA Vehicle Enquiry Service. Get a free API key from the DVLA developer portal (developer-portal.driver-vehicle-licensing.api.gov.uk). Insurance checks open askMID for you to complete manually. Lookups are not stored.")
         }
     }
 

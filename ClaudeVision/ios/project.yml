@@ -8,7 +8,7 @@ options:
 packages:
   meta-wearables-dat-ios:
     url: https://github.com/facebook/meta-wearables-dat-ios
-    from: "0.5.0"
+    exactVersion: "0.8.0"
 
 targets:
   ClaudeVision:

@@ -12,14 +12,14 @@ class AudioSessionManager {
     func configureForVoiceChat() throws {
         let session = AVAudioSession.sharedInstance()
 
-        // .allowBluetooth = HFP (Hands-Free Profile) — enables Bluetooth MIC INPUT
+        // .allowBluetoothHFP = HFP (Hands-Free Profile) — enables Bluetooth MIC INPUT
         // .allowBluetoothA2DP = A2DP — high-quality Bluetooth OUTPUT only
         // .defaultToSpeaker = fallback to speaker when no Bluetooth connected
         // We need BOTH for glasses: mic input (HFP) + audio output (A2DP)
         try session.setCategory(
             .playAndRecord,
             mode: .voiceChat,
-            options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
+            options: [.defaultToSpeaker, .allowBluetoothHFP, .allowBluetoothA2DP]
         )
         try session.setActive(true)
 

@@ -308,9 +308,9 @@ class SpeechManager: NSObject, ObservableObject {
                     return
                 }
                 print("[Speech] Playing remote audio: \(data.count) bytes from \(url.lastPathComponent)")
-                AudioDataPlayer.shared.play(data: data) { [weak self] in
+                AudioDataPlayer.shared.play(data: data) {
                     Task { @MainActor in
-                        self?.isSpeaking = false
+                        self.isSpeaking = false
                         print("[Speech] Remote audio playback finished")
                     }
                     completion()
@@ -331,10 +331,10 @@ class SpeechManager: NSObject, ObservableObject {
                 let audioData = try await client.synthesize(text: text, voiceId: elevenLabsVoiceId)
                 print("[Speech] ElevenLabs: received \(audioData.count) bytes, playing...")
 
-                AudioDataPlayer.shared.play(data: audioData) { [weak self] in
+                AudioDataPlayer.shared.play(data: audioData) {
                     Task { @MainActor in
-                        self?.isSpeaking = false
-                        self?.onSpeechFinished?()
+                        self.isSpeaking = false
+                        self.onSpeechFinished?()
                         print("[Speech] ElevenLabs playback finished")
                     }
                 }

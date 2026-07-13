@@ -131,8 +131,9 @@ class CameraManager: NSObject, ObservableObject, FrameSource {
         }
 
         connectionStatus = .connecting
+        let session = captureSession
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.captureSession.startRunning()
+            session.startRunning()
             DispatchQueue.main.async {
                 self?.isRunning = true
                 self?.connectionStatus = .connected

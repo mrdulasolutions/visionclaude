@@ -1,0 +1,12 @@
+ Confirmed — you only have the Command Line Tools, and there's no Xcode.app in /Applications. Since this is an iOS project, you'll need the full Xcode install. Here's the path:
+
+  1. Install Xcode — either from the Mac App Store, or download the .xip from https://developer.apple.com/download/all/ (the direct download is often faster and lets you pick the version).
+  2. Point the developer tools at it once installed:
+  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+  sudo xcodebuild -license accept
+  3. Get the iOS platform. Xcode 15+ includes the iOS SDK itself, but the simulator runtime is a separate download. You can do it from the CLI without opening the GUI:
+  xcodebuild -downloadPlatform iOS
+  3. (This is the command-line equivalent of Xcode → Settings → Components/Platforms.)
+
+  Fair warning on size: Xcode is a ~3.5 GB download that expands to ~15 GB, and the iOS simulator runtime is another ~7–8 GB. If you only need to build for a physical device and not the simulator, step 3 is still required for the SDK check on
+  newer Xcode versions, but you can skip installing extra simulator runtimes beyond the default.

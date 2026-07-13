@@ -33,6 +33,19 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
+  ClaudeVisionTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - ClaudeVisionTests
+    dependencies:
+      - target: ClaudeVision
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: co.hyperfood.claudevision.tests
+        SWIFT_VERSION: "5.9"
+
 schemes:
   ClaudeVision:
     build:
@@ -40,3 +53,6 @@ schemes:
         ClaudeVision: all
     run:
       config: Debug
+    test:
+      targets:
+        - ClaudeVisionTests

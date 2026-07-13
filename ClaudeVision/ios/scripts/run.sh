@@ -25,7 +25,7 @@ DERIVED_DATA="$BUILD_DIR/DerivedData"
 
 SCHEME="ClaudeVision"
 PROJECT="$IOS_DIR/ClaudeVision.xcodeproj"
-BUNDLE_ID="com.claudevision.app"
+BUNDLE_ID="co.hyperfood.claudevision"
 
 SIMULATOR_NAME="iPhone 17 Pro"
 TARGET="simulator"

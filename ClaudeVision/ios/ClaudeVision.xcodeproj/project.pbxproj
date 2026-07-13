@@ -15,13 +15,19 @@
 		1FCF6858A2A8ECA1CCCFD4FA /* QuestionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */; };
 		25A8B74F9507C6E8039685DE /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FAB5518FCC84C79B8DCA9A /* SessionViewModel.swift */; };
 		26DF4D6AB4300A244E2F9993 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = F89EE55D2F5EFD824C5EAAA1 /* MWDATCamera */; };
+		288D89333702C7EC68C2FFC2 /* QuestionRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08764F110FD568FE8BD7777 /* QuestionRouterTests.swift */; };
 		29155B01A2A37CB3C93CB527 /* MusicRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D1D8DEBD70176A818C90DB /* MusicRecognitionService.swift */; };
+		2B16B14BDA0A1CF77B512438 /* VisionModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF4EADA577D6EE0C4FB535C6 /* VisionModeTests.swift */; };
 		2F08588A0FA5377BED01C1DB /* FrameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D8A46187AD105F8BE0E3F /* FrameSource.swift */; };
+		3458885FFE0A4607F51E69EF /* QuestionDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377867B34350F4E086C7959E /* QuestionDetectorTests.swift */; };
 		3FDF7F0AAA360B8773806769 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6CC34BA60D99796648D08667 /* Preview Assets.xcassets */; };
 		469CFAAD6292414FB1833B6F /* ModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97A69C4B33A208E5B740199 /* ModeManager.swift */; };
 		513C996089182BCDA9EC21E6 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6399D29511D56878F01F5204 /* CameraManager.swift */; };
+		5AFFB434EBCA0BC57C4DC1A6 /* LookupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B21BEC5DF5313FF3000C872 /* LookupServiceTests.swift */; };
 		6405C8BC1770E52F7FF48717 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */; };
+		71A44EE536C5391E32E0A30F /* PlateReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BB30D8715D586FC9C673C24 /* PlateReaderTests.swift */; };
 		724F434A533F1D7D63507D0A /* ClaudeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3069E25AC77AD72DFEB548 /* ClaudeBridge.swift */; };
+		789692B7F6E053F8F51CB362 /* ModeManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA8E9A1206BE530EA5D000A /* ModeManagerTests.swift */; };
 		7B9EB5C35AA99FFC8E91F8B2 /* RayBanManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0160BE25F91F5DE8B717653 /* RayBanManager.swift */; };
 		83375B61622FFB28135BDCA2 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0BC356D66DFF1B96A3C1699 /* TranscriptView.swift */; };
 		856B82DACC849A0DC24A9525 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B5455D3CE56E037F92BB98 /* SettingsView.swift */; };
@@ -29,38 +35,62 @@
 		95E4B95F9EF6DC5CB78C8148 /* AudioSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1533204F4B0090BB686560D /* AudioSessionManager.swift */; };
 		98363E750004AD195EEF95DE /* VisionMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B211DB3670DC6B1096A7F0 /* VisionMode.swift */; };
 		9864E1522823865D7292FA82 /* ClaudeVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D80B4A559F7D180D8DCE6033 /* ClaudeVisionApp.swift */; };
+		9A4D2F42AFA923803CFFC112 /* ClaudeConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FD4DF40DB01595539B651F /* ClaudeConfigTests.swift */; };
 		A2C392605B594915241F310C /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485A5E24F72ECE1BCAB326AD /* ChatModels.swift */; };
 		A43F4E5987929CE3E6D64884 /* VenueFinderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B13A8649154D52CA6B5FC3C0 /* VenueFinderService.swift */; };
 		A6E72D7A5731CB9342368E4F /* BookLookupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21DA9FD84E331AAEA88D590D /* BookLookupService.swift */; };
 		B8C71E065C490BC6007AAB83 /* OpenFoodFactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D129B46738ECD7413140E4B8 /* OpenFoodFactsService.swift */; };
 		C7D9F412F3607F657FC2F90A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D88A83F09D5107BD2F91B6 /* ContentView.swift */; };
+		D603754968FB3DDC851142C3 /* HistoricalSitesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3B5C6CD59451D65653D4CBC /* HistoricalSitesService.swift */; };
 		E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */; };
+		F9DA7941792485B67F0D8A96 /* PlantNetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E80C2053DD81E05DFA0E798 /* PlantNetService.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		952EA265CFEAA1EF74C65661 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ED22C830246B55416593B99A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 19BFFEED1742A8DB7B08397C;
+			remoteInfo = ClaudeVision;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		04B5455D3CE56E037F92BB98 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0730CD29BE25A17AA11DBD6B /* ClaudeConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeConfig.swift; sourceTree = "<group>"; };
 		21DA9FD84E331AAEA88D590D /* BookLookupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookLookupService.swift; sourceTree = "<group>"; };
+		2DA8E9A1206BE530EA5D000A /* ModeManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeManagerTests.swift; sourceTree = "<group>"; };
+		377867B34350F4E086C7959E /* QuestionDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionDetectorTests.swift; sourceTree = "<group>"; };
 		3F3069E25AC77AD72DFEB548 /* ClaudeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeBridge.swift; sourceTree = "<group>"; };
 		43B211DB3670DC6B1096A7F0 /* VisionMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionMode.swift; sourceTree = "<group>"; };
 		485A5E24F72ECE1BCAB326AD /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
+		4B21BEC5DF5313FF3000C872 /* LookupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LookupServiceTests.swift; sourceTree = "<group>"; };
 		53EA9B6366C106F6F991789D /* QuestionDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionDetector.swift; sourceTree = "<group>"; };
 		57FAB5518FCC84C79B8DCA9A /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
 		5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRouter.swift; sourceTree = "<group>"; };
+		5E80C2053DD81E05DFA0E798 /* PlantNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlantNetService.swift; sourceTree = "<group>"; };
 		5F8AA23E7B6922ACB9BDD28E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6399D29511D56878F01F5204 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		64D1D8DEBD70176A818C90DB /* MusicRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicRecognitionService.swift; sourceTree = "<group>"; };
 		6CC34BA60D99796648D08667 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		704D8A46187AD105F8BE0E3F /* FrameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameSource.swift; sourceTree = "<group>"; };
 		74D7FFE0B93074B83A77FC14 /* VehicleCheckService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleCheckService.swift; sourceTree = "<group>"; };
+		7BB30D8715D586FC9C673C24 /* PlateReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlateReaderTests.swift; sourceTree = "<group>"; };
 		8206037DFED6213BCCDF3719 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		92D88A83F09D5107BD2F91B6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		98E55A0878E3210165D23655 /* ClaudeVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A08764F110FD568FE8BD7777 /* QuestionRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRouterTests.swift; sourceTree = "<group>"; };
+		AF4EADA577D6EE0C4FB535C6 /* VisionModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionModeTests.swift; sourceTree = "<group>"; };
+		B13A8649154D52CA6B5FC3C0 /* VenueFinderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VenueFinderService.swift; sourceTree = "<group>"; };
+		B8FD4DF40DB01595539B651F /* ClaudeConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeConfigTests.swift; sourceTree = "<group>"; };
+		BDF4813DB1EA59FA54AD0EE2 /* ClaudeVisionTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeVisionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0BC356D66DFF1B96A3C1699 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		D129B46738ECD7413140E4B8 /* OpenFoodFactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenFoodFactsService.swift; sourceTree = "<group>"; };
 		D1533204F4B0090BB686560D /* AudioSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionManager.swift; sourceTree = "<group>"; };
 		D3B5C6CD59451D65653D4CBC /* HistoricalSitesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricalSitesService.swift; sourceTree = "<group>"; };
 		D80B4A559F7D180D8DCE6033 /* ClaudeVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeVisionApp.swift; sourceTree = "<group>"; };
+		DD19FC7A9EAB6AC4A0D41F18 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RayBanDiagnosticsView.swift; sourceTree = "<group>"; };
 		ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		F0160BE25F91F5DE8B717653 /* RayBanManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RayBanManager.swift; sourceTree = "<group>"; };
@@ -95,8 +125,23 @@
 			isa = PBXGroup;
 			children = (
 				D6D2B4AD3101E6AB77E04BA6 /* ClaudeVision */,
+				7FE32B659D8FF7CA79664C71 /* ClaudeVisionTests */,
 				A89D041F911DC9E0739EB6C0 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		7FE32B659D8FF7CA79664C71 /* ClaudeVisionTests */ = {
+			isa = PBXGroup;
+			children = (
+				B8FD4DF40DB01595539B651F /* ClaudeConfigTests.swift */,
+				4B21BEC5DF5313FF3000C872 /* LookupServiceTests.swift */,
+				2DA8E9A1206BE530EA5D000A /* ModeManagerTests.swift */,
+				7BB30D8715D586FC9C673C24 /* PlateReaderTests.swift */,
+				377867B34350F4E086C7959E /* QuestionDetectorTests.swift */,
+				A08764F110FD568FE8BD7777 /* QuestionRouterTests.swift */,
+				AF4EADA577D6EE0C4FB535C6 /* VisionModeTests.swift */,
+			);
+			path = ClaudeVisionTests;
 			sourceTree = "<group>";
 		};
 		954913A80229FAA275E99FD1 /* Views */ = {
@@ -122,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				98E55A0878E3210165D23655 /* ClaudeVision.app */,
+				BDF4813DB1EA59FA54AD0EE2 /* ClaudeVisionTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -134,6 +180,12 @@
 				6399D29511D56878F01F5204 /* CameraManager.swift */,
 				3F3069E25AC77AD72DFEB548 /* ClaudeBridge.swift */,
 				704D8A46187AD105F8BE0E3F /* FrameSource.swift */,
+				D3B5C6CD59451D65653D4CBC /* HistoricalSitesService.swift */,
+				DD19FC7A9EAB6AC4A0D41F18 /* LocationService.swift */,
+				64D1D8DEBD70176A818C90DB /* MusicRecognitionService.swift */,
+				D129B46738ECD7413140E4B8 /* OpenFoodFactsService.swift */,
+				5E80C2053DD81E05DFA0E798 /* PlantNetService.swift */,
+				53EA9B6366C106F6F991789D /* QuestionDetector.swift */,
 				5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */,
 				F0160BE25F91F5DE8B717653 /* RayBanManager.swift */,
 				ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */,
@@ -190,6 +242,24 @@
 			productReference = 98E55A0878E3210165D23655 /* ClaudeVision.app */;
 			productType = "com.apple.product-type.application";
 		};
+		78FC0CF1D2DED595A277AA60 /* ClaudeVisionTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E21F82EF9E04F927DA2FB1DA /* Build configuration list for PBXNativeTarget "ClaudeVisionTests" */;
+			buildPhases = (
+				16F000A3D6337BA87A34A14F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D28949690FA612D54A6B6EDF /* PBXTargetDependency */,
+			);
+			name = ClaudeVisionTests;
+			packageProductDependencies = (
+			);
+			productName = ClaudeVisionTests;
+			productReference = BDF4813DB1EA59FA54AD0EE2 /* ClaudeVisionTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -222,6 +292,7 @@
 			projectRoot = "";
 			targets = (
 				19BFFEED1742A8DB7B08397C /* ClaudeVision */,
+				78FC0CF1D2DED595A277AA60 /* ClaudeVisionTests */,
 			);
 		};
 /* End PBXProject section */
@@ -239,6 +310,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		16F000A3D6337BA87A34A14F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A4D2F42AFA923803CFFC112 /* ClaudeConfigTests.swift in Sources */,
+				5AFFB434EBCA0BC57C4DC1A6 /* LookupServiceTests.swift in Sources */,
+				789692B7F6E053F8F51CB362 /* ModeManagerTests.swift in Sources */,
+				71A44EE536C5391E32E0A30F /* PlateReaderTests.swift in Sources */,
+				3458885FFE0A4607F51E69EF /* QuestionDetectorTests.swift in Sources */,
+				288D89333702C7EC68C2FFC2 /* QuestionRouterTests.swift in Sources */,
+				2B16B14BDA0A1CF77B512438 /* VisionModeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6FBE7C83F638E053828BBF68 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -255,6 +340,10 @@
 				D603754968FB3DDC851142C3 /* HistoricalSitesService.swift in Sources */,
 				0F9556AEC7214D3195793E05 /* LocationService.swift in Sources */,
 				469CFAAD6292414FB1833B6F /* ModeManager.swift in Sources */,
+				29155B01A2A37CB3C93CB527 /* MusicRecognitionService.swift in Sources */,
+				B8C71E065C490BC6007AAB83 /* OpenFoodFactsService.swift in Sources */,
+				F9DA7941792485B67F0D8A96 /* PlantNetService.swift in Sources */,
+				15F718D66D6E25ABB0CF7BA9 /* QuestionDetector.swift in Sources */,
 				1FCF6858A2A8ECA1CCCFD4FA /* QuestionRouter.swift in Sources */,
 				E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */,
 				7B9EB5C35AA99FFC8E91F8B2 /* RayBanManager.swift in Sources */,
@@ -269,6 +358,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D28949690FA612D54A6B6EDF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 19BFFEED1742A8DB7B08397C /* ClaudeVision */;
+			targetProxy = 952EA265CFEAA1EF74C65661 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1DB8F1A88168E8128E80CA53 /* Debug */ = {
@@ -411,6 +508,24 @@
 			};
 			name = Release;
 		};
+		D0DE39B99AAE8BEC3D1B6950 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.hyperfood.claudevision.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeVision.app/ClaudeVision";
+			};
+			name = Release;
+		};
 		EF8DE802157F3E08DB6DFAB6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -432,6 +547,24 @@
 			};
 			name = Debug;
 		};
+		FA3FBF7AD3C4214F76A8848A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = co.hyperfood.claudevision.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeVision.app/ClaudeVision";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -440,6 +573,15 @@
 			buildConfigurations = (
 				EF8DE802157F3E08DB6DFAB6 /* Debug */,
 				46CC0894771E7101D063C88B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E21F82EF9E04F927DA2FB1DA /* Build configuration list for PBXNativeTarget "ClaudeVisionTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FA3FBF7AD3C4214F76A8848A /* Debug */,
+				D0DE39B99AAE8BEC3D1B6950 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

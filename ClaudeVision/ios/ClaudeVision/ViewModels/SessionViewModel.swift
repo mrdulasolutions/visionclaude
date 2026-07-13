@@ -6,6 +6,7 @@ import CoreLocation
 enum SessionState: String {
     case disconnected = "Disconnected"
     case idle = "Ready"
+    case waitingForWake = "Say “Hey Claude”"
     case listening = "Listening"
     case thinking = "Thinking"
     case speaking = "Speaking"
@@ -35,8 +36,16 @@ class SessionViewModel: ObservableObject {
     }
 
     // Frame sources
-    @Published var activeFrameSource: FrameSourceType = .iPhone {
-        didSet { switchFrameSource() }
+    private static let frameSourceKey = "VisionClaude_ActiveFrameSource"
+    @Published var activeFrameSource: FrameSourceType = {
+        guard let raw = UserDefaults.standard.string(forKey: frameSourceKey),
+              let saved = FrameSourceType(rawValue: raw) else { return .iPhone }
+        return saved
+    }() {
+        didSet {
+            UserDefaults.standard.set(activeFrameSource.rawValue, forKey: Self.frameSourceKey)
+            switchFrameSource()
+        }
     }
     @Published var frameSourceStatus: FrameSourceStatus = .disconnected
     @Published var rayBanFrame: UIImage?
@@ -68,6 +77,23 @@ class SessionViewModel: ObservableObject {
     private var lastVenues: [VenueFinderService.Venue] = []
     private var lastVenueFetch: (location: CLLocation, time: Date)?
     private var cancellables = Set<AnyCancellable>()
+
+    // Wake word / on-demand camera state
+    private var awakeUntil: Date = .distantPast
+    private var lastReplyWasQuestion = false
+    private var wakeExpiryTask: Task<Void, Never>?
+    private var cameraIdleTask: Task<Void, Never>?
+    private let wakeQuestionWindow: TimeInterval = 12  // after a bare "hey claude"
+    private let followUpWindow: TimeInterval = 10      // after Claude finishes replying
+
+    /// True while speech should be sent without needing the wake phrase again.
+    private var isAwake: Bool { Date() < awakeUntil }
+
+    /// QR-scanner mode auto-detects codes, which needs a live iPhone camera.
+    private var shouldStreamContinuously: Bool {
+        if !config.onDemandCamera { return true }
+        return modeManager.activeMode.id == "qr_scanner" && activeFrameSource == .iPhone
+    }
 
     init(config: ClaudeConfig = ClaudeConfig.load()) {
         self.config = config
@@ -135,6 +161,7 @@ class SessionViewModel: ObservableObject {
 
                 self.transcript.append(TranscriptMessage(role: .assistant, text: text))
                 self.isProcessing = false
+                self.lastReplyWasQuestion = text.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("?")
 
                 if let audioUrl, let url = URL(string: audioUrl) {
                     // Play TTS audio from channel server
@@ -142,7 +169,7 @@ class SessionViewModel: ObservableObject {
                     self.speechManager.playRemoteAudio(url: url) { [weak self] in
                         Task { @MainActor in
                             guard let self, self.isConnected, self.state == .speaking else { return }
-                            self.resumeAfterReply()
+                            self.startFollowUpListening()
                         }
                     }
                 } else {
@@ -161,7 +188,15 @@ class SessionViewModel: ObservableObject {
                     self.state = .idle
                     self.errorMessage = nil
                     try? AudioSessionManager.shared.configureForVoiceChat()
-                    self.startActiveFrameSource()
+                    // On-demand policy: leave the camera off until a question needs
+                    // vision — continuous streaming drains the glasses and the phone.
+                    if self.shouldStreamContinuously {
+                        self.startActiveFrameSource()
+                    }
+                    // Hands-free: listen for "hey claude" right away.
+                    if self.config.wakeWordEnabled && !self.speechManager.isListening {
+                        self.startListening()
+                    }
                 }
             }
         }
@@ -260,6 +295,9 @@ class SessionViewModel: ObservableObject {
     func disconnect() {
         speechManager.stopListening()
         speechManager.stopSpeaking()
+        cameraIdleTask?.cancel()
+        wakeExpiryTask?.cancel()
+        awakeUntil = .distantPast
         cameraManager.stop()
         rayBanManager.stop()
         bridge.disconnect()
@@ -274,8 +312,10 @@ class SessionViewModel: ObservableObject {
     // MARK: - Frame Source
 
     private func switchFrameSource() {
+        cameraIdleTask?.cancel()
         cameraManager.stop()
         rayBanManager.stop()
+        frameSourceStatus = .disconnected
 
         if activeFrameSource == .rayBan {
             // Reconfigure audio session for Bluetooth, then route mic
@@ -293,7 +333,22 @@ class SessionViewModel: ObservableObject {
                 }
             }
         }
-        startActiveFrameSource()
+        if shouldStreamContinuously {
+            startActiveFrameSource()
+        }
+    }
+
+    /// Starts the active source only when it isn't already running or mid-startup —
+    /// re-entering RayBanManager.start() during its async session dance would
+    /// rebuild the DAT session underneath the in-flight one.
+    private func startActiveFrameSourceIfNeeded() {
+        let status = activeFrameSource == .iPhone
+            ? cameraManager.connectionStatus
+            : rayBanManager.connectionStatus
+        switch status {
+        case .connected, .connecting: return
+        default: startActiveFrameSource()
+        }
     }
 
     private func startActiveFrameSource() {
@@ -321,7 +376,7 @@ class SessionViewModel: ObservableObject {
         print("[Session] Speaking interrupted by user — resuming listening")
         // Brief delay for audio session to settle after stopping playback
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.startListening()
+            self?.startFollowUpListening()
         }
     }
 
@@ -329,23 +384,69 @@ class SessionViewModel: ObservableObject {
 
     func toggleListening() {
         if speechManager.isListening {
-            speechManager.stopListening()
-            state = .idle
+            if state == .waitingForWake {
+                // Mic tap while passively waiting = "I want to talk now" — skip the wake word.
+                extendAwake(by: wakeQuestionWindow)
+                state = .listening
+            } else {
+                speechManager.stopListening()
+                state = .idle
+            }
         } else {
             startListening()
         }
     }
 
     func startListening() {
+        startListening(retriesRemaining: 3)
+    }
+
+    private func startListening(retriesRemaining: Int) {
         if speechManager.isSpeaking {
             speechManager.stopSpeaking()
         }
         do {
             try speechManager.startListening()
-            state = .listening
+            state = (config.wakeWordEnabled && !isAwake) ? .waitingForWake : .listening
             errorMessage = nil
         } catch {
-            errorMessage = "Mic: \(error.localizedDescription)"
+            print("[Session] startListening failed (retries left: \(retriesRemaining)): \(error)")
+            // Audio route transitions (glasses HFP <-> iPhone after TTS playback)
+            // briefly reject the engine's input format — CoreAudio -10868
+            // kAudioUnitErr_FormatNotSupported. The route settles within a
+            // second, so retry before surfacing an error to the user.
+            if retriesRemaining > 0, isConnected {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    guard let self, self.isConnected,
+                          !self.speechManager.isListening, !self.speechManager.isSpeaking else { return }
+                    self.startListening(retriesRemaining: retriesRemaining - 1)
+                }
+            } else {
+                errorMessage = "Mic: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// Resume listening after Claude replies, keeping a short window where
+    /// follow-ups don't need the wake phrase again.
+    private func startFollowUpListening() {
+        if config.wakeWordEnabled {
+            extendAwake(by: followUpWindow)
+        }
+        startListening()
+    }
+
+    /// Marks the session awake for `window` seconds and schedules the state pill
+    /// to drop back to "Say Hey Claude" when the window lapses unused.
+    private func extendAwake(by window: TimeInterval) {
+        awakeUntil = Date().addingTimeInterval(window)
+        wakeExpiryTask?.cancel()
+        wakeExpiryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(window * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            if self.state == .listening && !self.isAwake && self.config.wakeWordEnabled {
+                self.state = .waitingForWake
+            }
         }
     }
 
@@ -354,11 +455,56 @@ class SessionViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .assign(to: &$currentTranscription)
 
+        // Pre-warm the camera the moment the vision trigger ("look at") shows up
+        // in the PARTIAL transcription — the stream cold-start then overlaps with
+        // the user finishing their sentence instead of adding to answer latency.
+        // A bare wake word no longer pre-warms: most questions are text-only.
+        speechManager.$transcribedText
+            .receive(on: RunLoop.main)
+            .sink { [weak self] text in
+                guard let self, self.config.wakeWordEnabled, self.config.onDemandCamera,
+                      self.isConnected, !text.isEmpty,
+                      let question = QuestionRouter.questionAfterWakeWord(in: text),
+                      QuestionRouter.needsVision(question, mode: self.modeManager.activeMode)
+                else { return }
+                self.preWarmCamera()
+            }
+            .store(in: &cancellables)
+
         speechManager.onSpeechPause = { [weak self] text in
             Task { @MainActor in
-                await self?.handleUserSpeech(text)
+                await self?.handleVoiceSpeech(text)
             }
         }
+
+        // Recognition died on its own (route change, iOS task limit) — restart it
+        // so hands-free wake-word listening survives long idle stretches.
+        speechManager.onListeningStopped = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.isConnected, self.config.wakeWordEnabled,
+                      !self.isProcessing, !self.speechManager.isSpeaking,
+                      self.state == .listening || self.state == .waitingForWake else { return }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                guard !self.speechManager.isListening else { return }
+                self.startListening()
+            }
+        }
+
+        // QR-scanner mode needs the camera running to auto-detect codes;
+        // leaving it re-arms the on-demand idle shutdown.
+        modeManager.$activeMode
+            .receive(on: RunLoop.main)
+            .removeDuplicates { $0.id == $1.id }
+            .sink { [weak self] mode in
+                guard let self, self.isConnected, self.config.onDemandCamera else { return }
+                if mode.id == "qr_scanner" && self.activeFrameSource == .iPhone {
+                    self.cameraIdleTask?.cancel()
+                    self.startActiveFrameSourceIfNeeded()
+                } else {
+                    self.scheduleCameraIdleStop()
+                }
+            }
+            .store(in: &cancellables)
 
         speechManager.setPauseThreshold(config.speechPauseThreshold)
 
@@ -376,6 +522,47 @@ class SessionViewModel: ObservableObject {
     func sendText(_ text: String) async {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         await handleUserSpeech(text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Voice input goes through the wake-word gate; typed messages and quick
+    /// actions call handleUserSpeech directly and skip it.
+    private func handleVoiceSpeech(_ text: String) async {
+        guard config.wakeWordEnabled else {
+            await handleUserSpeech(text)
+            return
+        }
+
+        if let question = QuestionRouter.questionAfterWakeWord(in: text) {
+            if question.isEmpty {
+                // A bare "hey claude" — stay hot and capture the actual question next.
+                print("[Session] Wake word heard — listening for the question")
+                extendAwake(by: wakeQuestionWindow)
+                currentTranscription = ""
+                startListening()
+                return
+            }
+            awakeUntil = .distantPast
+            await handleUserSpeech(question)
+        } else if isAwake {
+            // Follow-up window: filter out conversational fragments ("Wait", "Yeah")
+            // that aren't addressed to Claude — each junk send costs a round trip
+            // and a spoken reply, which re-opens the window and compounds. Single
+            // words only count when they answer a question Claude just asked.
+            let wordCount = text.split(whereSeparator: { $0 == " " }).count
+            if wordCount < 2 && !lastReplyWasQuestion {
+                print("[Session] Ignoring one-word follow-up: \"\(text)\"")
+                currentTranscription = ""
+                startListening()
+                return
+            }
+            awakeUntil = .distantPast
+            await handleUserSpeech(text)
+        } else {
+            // Ambient speech without the wake word — discard and keep waiting.
+            print("[Session] Ignoring speech without wake word: \"\(text.prefix(60))\"")
+            currentTranscription = ""
+            startListening()
+        }
     }
 
     private func handleUserSpeech(_ text: String) async {
@@ -459,20 +646,21 @@ class SessionViewModel: ObservableObject {
         state = .thinking
         errorMessage = nil
 
+        // Route: does this question need eyes, or just text?
+        let wantsVision = QuestionRouter.needsVision(text, mode: modeManager.activeMode)
+        var image: Data?
+        if wantsVision {
+            image = await captureFrameOnDemand()
+            scheduleCameraIdleStop()
+        }
+        let source = activeFrameSource == .iPhone ? "iphone" : "rayban"
+        print("[Session] Routing: \(wantsVision ? "vision" : "text-only")\(wantsVision && image == nil ? " (frame unavailable)" : "")")
+
         // Prepend mode system prompt as context
         let modeContext = modeManager.activeMode.systemPrompt
         var fullText = "[Mode: \(modeManager.activeMode.name)] \(modeContext)\n\nUser: \(text)"
-
-        // Grab latest frame
-        var image: Data?
-        let source: String
-        switch activeFrameSource {
-        case .iPhone:
-            image = cameraManager.consumeFrame()
-            source = "iphone"
-        case .rayBan:
-            image = rayBanManager.consumeFrame()
-            source = "rayban"
+        if wantsVision && image == nil {
+            fullText += "\n\n(Note: the camera could not provide a frame for this question — answer from context or say you can't see right now.)"
         }
 
         // Music mode: sample ambient audio via ShazamKit and inject the match
@@ -662,44 +850,67 @@ class SessionViewModel: ObservableObject {
         }
     }
 
-    /// Venue data is stable for hours; refetch only after 10 minutes or a >250m move.
-    private func venueCacheIsStale(for location: CLLocation) -> Bool {
-        guard let last = lastVenueFetch, !lastVenues.isEmpty else { return true }
-        return Date().timeIntervalSince(last.time) > 600
-            || location.distance(from: last.location) > 250
+    // MARK: - On-Demand Frame Capture
+
+    /// Starts the active frame source speculatively (no-op if already running or
+    /// starting). The idle timer is armed immediately so a text-only question
+    /// doesn't leave a pre-warmed stream running forever; a vision question
+    /// re-arms it after the frame is captured.
+    private func preWarmCamera() {
+        let status = activeFrameSource == .iPhone
+            ? cameraManager.connectionStatus
+            : rayBanManager.connectionStatus
+        if case .connected = status { return }
+        if case .connecting = status { return }
+        print("[Session] Wake word heard — pre-warming \(activeFrameSource.rawValue)")
+        startActiveFrameSource()
+        scheduleCameraIdleStop()
     }
 
-    /// Matches "navigate to <venue>", "take me to <venue>", "directions to <venue>"
-    /// against the venues from the last Trip search.
-    private func navigationTarget(for text: String) -> VenueFinderService.Venue? {
-        guard !lastVenues.isEmpty else { return nil }
-        let lowered = text.lowercased()
-        let triggers = ["navigate to ", "take me to ", "directions to ", "walk me to ", "go to "]
-        guard let trigger = triggers.first(where: { lowered.contains($0) }),
-              let range = lowered.range(of: trigger) else { return nil }
-        let spokenName = lowered[range.upperBound...]
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        guard !spokenName.isEmpty else { return nil }
+    /// Spins up the active frame source (if it isn't already streaming) just long
+    /// enough to grab one fresh JPEG. Returns nil on timeout — glasses cold-starts
+    /// go through the whole DAT session dance and can legitimately take a while.
+    private func captureFrameOnDemand() async -> Data? {
+        cameraIdleTask?.cancel()
+        let source: any FrameSource = activeFrameSource == .iPhone ? cameraManager : rayBanManager
+        if !source.isRunning {
+            print("[Session] Vision question — starting \(activeFrameSource.rawValue) on demand")
+            startActiveFrameSourceIfNeeded()
+        }
 
-        return lastVenues.first { venue in
-            let name = venue.name.lowercased()
-                .components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-            return name.contains(spokenName) || spokenName.contains(name)
+        let timeout: TimeInterval = activeFrameSource == .rayBan ? 15 : 5
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let frame = source.consumeFrame() { return frame }
+            if case .error = source.connectionStatus { return nil }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+        print("[Session] Timed out waiting for a frame from \(activeFrameSource.rawValue)")
+        return nil
+    }
+
+    /// Shuts the stream back down after a quiet period so follow-up vision
+    /// questions stay snappy without leaving the camera burning battery.
+    private func scheduleCameraIdleStop() {
+        cameraIdleTask?.cancel()
+        guard config.onDemandCamera, !shouldStreamContinuously else { return }
+        let timeout = config.cameraIdleTimeout
+        cameraIdleTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            guard !self.isProcessing else {
+                self.scheduleCameraIdleStop()  // still waiting on a reply — check again later
+                return
+            }
+            print("[Session] Camera idle for \(Int(timeout))s — stopping stream to save battery")
+            self.stopFrameSources()
         }
     }
 
-    private var foodHealthProfile: String {
-        var concerns: [String] = []
-        if config.foodAvoidUPF { concerns.append("avoiding ultra-processed foods (NOVA 4)") }
-        if config.foodWatchSalt { concerns.append("watching salt intake") }
-        if config.foodWatchSaturatedFat { concerns.append("watching saturated fat") }
-        return concerns.isEmpty
-            ? "no specific restrictions configured — give balanced general advice"
-            : concerns.joined(separator: "; ")
+    private func stopFrameSources() {
+        cameraManager.stop()
+        rayBanManager.stop()
+        frameSourceStatus = .disconnected
     }
 
     private func observeSpeechCompletion() {
@@ -710,7 +921,7 @@ class SessionViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self, self.isConnected, self.state == .speaking else { return }
-                self.resumeAfterReply()
+                self.startFollowUpListening()
             }
             .store(in: &cancellables)
     }

@@ -183,6 +183,16 @@ struct ContentView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+
+                        // Live pipeline checklist — shows which gate is blocking the feed
+                        RayBanDiagnosticsView(
+                            rayBanManager: viewModel.rayBanManager,
+                            frameSourceStatus: viewModel.frameSourceStatus
+                        )
+                        .padding(16)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .padding(.horizontal, 32)
+                        .padding(.top, 8)
                     }
                 }
             }
@@ -590,6 +600,7 @@ struct ContentView: View {
         switch viewModel.state {
         case .disconnected: Image(systemName: "wifi.slash")
         case .idle: Image(systemName: "checkmark")
+        case .waitingForWake: Image(systemName: "ear")
         case .listening: Image(systemName: "waveform")
         case .thinking: Image(systemName: "brain")
         case .speaking: Image(systemName: "speaker.wave.2.fill")
@@ -600,6 +611,7 @@ struct ContentView: View {
         switch viewModel.state {
         case .disconnected: return .red
         case .idle: return .green
+        case .waitingForWake: return .cyan
         case .listening: return .anthropicOrange
         case .thinking: return .yellow
         case .speaking: return .blue

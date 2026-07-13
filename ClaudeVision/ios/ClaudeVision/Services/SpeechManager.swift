@@ -92,7 +92,13 @@ class AudioDataPlayer: NSObject, AVAudioPlayerDelegate {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            // Don't flip an already record-capable session to .playback — the
+            // category change tears down the Bluetooth HFP route to the glasses
+            // and the renegotiation back afterwards makes the next mic start
+            // fail with CoreAudio -10868 (format not supported).
+            if session.category != .playAndRecord {
+                try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            }
             try session.setActive(true)
 
             player = try AVAudioPlayer(data: data)
@@ -132,7 +138,10 @@ class SpeechManager: NSObject, ObservableObject {
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private let audioEngine = AVAudioEngine()
+    // var, not let: a Bluetooth route loss (glasses powering off mid-session) can
+    // corrupt the engine's cached input graph — start() then fails with -10868
+    // forever on that instance, and only a fresh engine recovers.
+    private var audioEngine = AVAudioEngine()
 
     // TTS — ElevenLabs (direct REST, no package)
     private var elevenLabsClient: ElevenLabsTTSClient?
@@ -146,6 +155,13 @@ class SpeechManager: NSObject, ObservableObject {
     private var pauseThreshold: TimeInterval = 1.5
     var onSpeechPause: ((String) -> Void)?
     var onSpeechFinished: (() -> Void)?
+    /// Fired when recognition dies unexpectedly (not via stopListening) — lets the
+    /// session restart the mic so wake-word listening survives long sessions.
+    var onListeningStopped: (() -> Void)?
+
+    // iOS quietly ends long-running recognition tasks; cycle them during silence.
+    private var watchdogTimer: Timer?
+    private let watchdogInterval: TimeInterval = 50
 
     override init() {
         super.init()
@@ -210,6 +226,46 @@ class SpeechManager: NSObject, ObservableObject {
 
         recognitionRequest = request
 
+        do {
+            try startEngineWithTap()
+        } catch {
+            // A stale input graph after a route loss fails with -10868 on every
+            // start() no matter how long we wait. Rebuild the engine and retry
+            // once before giving up.
+            print("[Speech] Engine start failed (\(error.localizedDescription)) — rebuilding audio engine")
+            audioEngine.inputNode.removeTap(onBus: 0)
+            audioEngine = AVAudioEngine()
+            try startEngineWithTap()
+        }
+
+        recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
+            Task { @MainActor in
+                guard let self else { return }
+                // Ignore stale callbacks from a session we already tore down —
+                // cancel() delivers an error asynchronously, after a new session
+                // may have started, and must not kill the fresh one.
+                guard self.recognitionRequest === request else { return }
+                if let result {
+                    self.transcribedText = result.bestTranscription.formattedString
+                    self.resetSilenceTimer()
+                    if result.isFinal { self.handleFinalResult() }
+                }
+                if let error {
+                    print("[Speech] Recognition ended with error: \(error)")
+                    self.stopListening()
+                    self.onListeningStopped?()
+                }
+            }
+        }
+
+        isListening = true
+        transcribedText = ""
+        scheduleWatchdog()
+    }
+
+    /// Installs the mic tap on the engine's current input node and starts it.
+    private func startEngineWithTap() throws {
+        audioEngine.reset()
         let inputNode = audioEngine.inputNode
         // Use the node's ACTUAL output format — this adapts to whatever
         // audio route is active (iPhone mic = 48kHz, Bluetooth HFP = 16kHz)
@@ -221,30 +277,24 @@ class SpeechManager: NSObject, ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Audio input not ready — try again"])
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
+        // Pass `nil` (not the captured `recordingFormat`) so the engine resolves the
+        // bus's CURRENT native format at install time. If the route changes between the
+        // read above and here — e.g. Bluetooth HFP glasses (16kHz) dropping to the iPhone
+        // mic (48kHz) — a captured format would no longer match the live bus and
+        // installTap throws an uncatchable NSException (SIGABRT). nil closes that window.
+        inputNode.removeTap(onBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, _ in
             self?.recognitionRequest?.append(buffer)
         }
 
         audioEngine.prepare()
         try audioEngine.start()
-
-        recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
-            Task { @MainActor in
-                guard let self else { return }
-                if let result {
-                    self.transcribedText = result.bestTranscription.formattedString
-                    self.resetSilenceTimer()
-                    if result.isFinal { self.handleFinalResult() }
-                }
-                if error != nil { self.stopListening() }
-            }
-        }
-
-        isListening = true
-        transcribedText = ""
     }
 
     func stopListening() {
+        isListening = false
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
         silenceTimer?.invalidate()
         silenceTimer = nil
         audioEngine.stop()
@@ -253,7 +303,25 @@ class SpeechManager: NSObject, ObservableObject {
         recognitionRequest = nil
         recognitionTask?.cancel()
         recognitionTask = nil
-        isListening = false
+    }
+
+    private func scheduleWatchdog() {
+        watchdogTimer?.invalidate()
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: watchdogInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.watchdogFired() }
+        }
+    }
+
+    private func watchdogFired() {
+        guard isListening else { return }
+        // Mid-utterance — the silence timer owns the session, don't cycle it.
+        guard transcribedText.isEmpty else { return }
+        print("[Speech] Watchdog: cycling recognition task to keep listening alive")
+        stopListening()
+        do { try startListening() } catch {
+            print("[Speech] Watchdog restart failed: \(error.localizedDescription)")
+            onListeningStopped?()
+        }
     }
 
     private func resetSilenceTimer() {

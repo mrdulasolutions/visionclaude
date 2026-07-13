@@ -5,7 +5,7 @@ struct SettingsView: View {
     @Binding var activeFrameSource: FrameSourceType
     let isConnected: Bool
     let frameSourceStatus: FrameSourceStatus
-    let rayBanManager: RayBanManager
+    @ObservedObject var rayBanManager: RayBanManager
     @ObservedObject var modeManager: ModeManager
     let onConnect: () -> Void
     let onConnectGlasses: () -> Void
@@ -32,6 +32,9 @@ struct SettingsView: View {
 
                 // -- Camera Source --
                 cameraSection
+
+                // -- Hands-Free & Battery --
+                handsFreeSection
 
                 // -- Meta Ray-Ban Glasses --
                 rayBanSection
@@ -363,6 +366,43 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Hands-Free & Battery
+
+    private var handsFreeSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                settingIcon("waveform.and.mic", color: .teal)
+                Toggle("“Hey Claude” Wake Word", isOn: $config.wakeWordEnabled)
+            }
+
+            HStack(spacing: 14) {
+                settingIcon("battery.75", color: .teal)
+                Toggle("On-Demand Camera", isOn: $config.onDemandCamera)
+            }
+
+            if config.onDemandCamera {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 14) {
+                        settingIcon("moon.zzz.fill", color: .teal)
+                        Text("Camera Idle Timeout")
+                        Spacer()
+                        Text("\(Int(config.cameraIdleTimeout))s")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $config.cameraIdleTimeout, in: 10...120, step: 5)
+                        .tint(accentColor)
+                }
+            }
+        } header: {
+            Label("Hands-Free & Battery", systemImage: "bolt.heart")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("With the wake word on, speech is only sent after you say “Hey Claude.” On-demand camera keeps video off until a question needs vision, then shuts it down again after the idle timeout — a major battery saving for the glasses and phone.")
+        }
+    }
+
     // MARK: - Ray-Ban Section
 
     private var rayBanSection: some View {
@@ -410,6 +450,15 @@ struct SettingsView: View {
                 Text(rayBanManager.isRegistered ? "Registered" : "Not Registered")
                     .font(.subheadline)
                     .foregroundStyle(rayBanManager.isRegistered ? .green : accentColor)
+            }
+
+            // Live pipeline diagnostics (only relevant when glasses are the active source)
+            if activeFrameSource == .rayBan {
+                RayBanDiagnosticsView(
+                    rayBanManager: rayBanManager,
+                    frameSourceStatus: frameSourceStatus
+                )
+                .padding(.vertical, 4)
             }
 
             // Connect button

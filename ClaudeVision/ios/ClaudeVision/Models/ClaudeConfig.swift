@@ -1,49 +1,42 @@
 import Foundation
 
 struct ClaudeConfig: Codable {
-    var gatewayHost: String = "Davids-MacBook-Pro-3.local"
+    var gatewayHost: String = "Davids-MacBook-Air.local"
     var gatewayPort: Int = 18790
     var videoFrameInterval: TimeInterval = 1.0
     var videoJPEGQuality: Double = 0.85
-    var speechPauseThreshold: TimeInterval = 1.5
+    var speechPauseThreshold: TimeInterval = 1.0
     var elevenLabsAPIKey: String = ""
     var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM" // Rachel (default)
     var channelToken: String = ""
-    var plantNetAPIKey: String = ""
-
-    // Food mode health profile
-    var foodAvoidUPF: Bool = false
-    var foodWatchSalt: Bool = false
-    var foodWatchSaturatedFat: Bool = false
-
-    // Trip mode
-    var googlePlacesAPIKey: String = ""
-    var tripAdvisorAPIKey: String = ""
-
-    // Vehicle mode
-    var dvlaAPIKey: String = ""
+    var wakeWordEnabled: Bool = true      // only send speech addressed with "hey claude"
+    var onDemandCamera: Bool = true       // stream video only when a question needs vision
+    var cameraIdleTimeout: TimeInterval = 30  // seconds before an on-demand stream shuts off
 
     init() {}
 
-    // Tolerant decoding so configs saved before a field existed still load.
+    // Decode each field with a fallback so configs saved by older builds (missing
+    // newer keys) don't fail wholesale — a failed decode wipes all user settings.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let defaults = ClaudeConfig()
-        gatewayHost = try c.decodeIfPresent(String.self, forKey: .gatewayHost) ?? defaults.gatewayHost
-        gatewayPort = try c.decodeIfPresent(Int.self, forKey: .gatewayPort) ?? defaults.gatewayPort
-        videoFrameInterval = try c.decodeIfPresent(TimeInterval.self, forKey: .videoFrameInterval) ?? defaults.videoFrameInterval
-        videoJPEGQuality = try c.decodeIfPresent(Double.self, forKey: .videoJPEGQuality) ?? defaults.videoJPEGQuality
-        speechPauseThreshold = try c.decodeIfPresent(TimeInterval.self, forKey: .speechPauseThreshold) ?? defaults.speechPauseThreshold
-        elevenLabsAPIKey = try c.decodeIfPresent(String.self, forKey: .elevenLabsAPIKey) ?? defaults.elevenLabsAPIKey
-        elevenLabsVoiceId = try c.decodeIfPresent(String.self, forKey: .elevenLabsVoiceId) ?? defaults.elevenLabsVoiceId
-        channelToken = try c.decodeIfPresent(String.self, forKey: .channelToken) ?? defaults.channelToken
-        plantNetAPIKey = try c.decodeIfPresent(String.self, forKey: .plantNetAPIKey) ?? defaults.plantNetAPIKey
-        foodAvoidUPF = try c.decodeIfPresent(Bool.self, forKey: .foodAvoidUPF) ?? defaults.foodAvoidUPF
-        foodWatchSalt = try c.decodeIfPresent(Bool.self, forKey: .foodWatchSalt) ?? defaults.foodWatchSalt
-        foodWatchSaturatedFat = try c.decodeIfPresent(Bool.self, forKey: .foodWatchSaturatedFat) ?? defaults.foodWatchSaturatedFat
-        googlePlacesAPIKey = try c.decodeIfPresent(String.self, forKey: .googlePlacesAPIKey) ?? defaults.googlePlacesAPIKey
-        tripAdvisorAPIKey = try c.decodeIfPresent(String.self, forKey: .tripAdvisorAPIKey) ?? defaults.tripAdvisorAPIKey
-        dvlaAPIKey = try c.decodeIfPresent(String.self, forKey: .dvlaAPIKey) ?? defaults.dvlaAPIKey
+        let d = ClaudeConfig()
+        gatewayHost = (try? c.decode(String.self, forKey: .gatewayHost)) ?? d.gatewayHost
+        gatewayPort = (try? c.decode(Int.self, forKey: .gatewayPort)) ?? d.gatewayPort
+        videoFrameInterval = (try? c.decode(TimeInterval.self, forKey: .videoFrameInterval)) ?? d.videoFrameInterval
+        videoJPEGQuality = (try? c.decode(Double.self, forKey: .videoJPEGQuality)) ?? d.videoJPEGQuality
+        speechPauseThreshold = (try? c.decode(TimeInterval.self, forKey: .speechPauseThreshold)) ?? d.speechPauseThreshold
+        elevenLabsAPIKey = (try? c.decode(String.self, forKey: .elevenLabsAPIKey)) ?? d.elevenLabsAPIKey
+        elevenLabsVoiceId = (try? c.decode(String.self, forKey: .elevenLabsVoiceId)) ?? d.elevenLabsVoiceId
+        channelToken = (try? c.decode(String.self, forKey: .channelToken)) ?? d.channelToken
+        wakeWordEnabled = (try? c.decode(Bool.self, forKey: .wakeWordEnabled)) ?? d.wakeWordEnabled
+        onDemandCamera = (try? c.decode(Bool.self, forKey: .onDemandCamera)) ?? d.onDemandCamera
+        cameraIdleTimeout = (try? c.decode(TimeInterval.self, forKey: .cameraIdleTimeout)) ?? d.cameraIdleTimeout
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case gatewayHost, gatewayPort, videoFrameInterval, videoJPEGQuality
+        case speechPauseThreshold, elevenLabsAPIKey, elevenLabsVoiceId, channelToken
+        case wakeWordEnabled, onDemandCamera, cameraIdleTimeout
     }
 
     var baseURL: URL {
@@ -78,8 +71,19 @@ struct ClaudeConfig: Codable {
 
     static func load() -> ClaudeConfig {
         guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let config = try? JSONDecoder().decode(ClaudeConfig.self, from: data) else {
+              var config = try? JSONDecoder().decode(ClaudeConfig.self, from: data) else {
             return ClaudeConfig()
+        }
+        // One-time migration (2026-07): default pause threshold dropped 1.5 → 1.0
+        // for snappier answers. Configs saved under the old default carry 1.5
+        // forward, so nudge them once; after that the user's slider choice wins.
+        let migrationKey = "ClaudeConfig.pauseThreshold1sMigration"
+        if !UserDefaults.standard.bool(forKey: migrationKey) {
+            if config.speechPauseThreshold == 1.5 {
+                config.speechPauseThreshold = 1.0
+                config.save()
+            }
+            UserDefaults.standard.set(true, forKey: migrationKey)
         }
         return config
     }

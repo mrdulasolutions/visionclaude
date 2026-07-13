@@ -12,6 +12,7 @@
 		15F718D66D6E25ABB0CF7BA9 /* QuestionDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53EA9B6366C106F6F991789D /* QuestionDetector.swift */; };
 		183E5E2B4296039CCDAD733A /* VehicleCheckService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D7FFE0B93074B83A77FC14 /* VehicleCheckService.swift */; };
 		1A238EAD9D1126CF37177585 /* ClaudeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0730CD29BE25A17AA11DBD6B /* ClaudeConfig.swift */; };
+		1FCF6858A2A8ECA1CCCFD4FA /* QuestionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */; };
 		25A8B74F9507C6E8039685DE /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FAB5518FCC84C79B8DCA9A /* SessionViewModel.swift */; };
 		26DF4D6AB4300A244E2F9993 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = F89EE55D2F5EFD824C5EAAA1 /* MWDATCamera */; };
 		29155B01A2A37CB3C93CB527 /* MusicRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64D1D8DEBD70176A818C90DB /* MusicRecognitionService.swift */; };
@@ -33,8 +34,7 @@
 		A6E72D7A5731CB9342368E4F /* BookLookupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21DA9FD84E331AAEA88D590D /* BookLookupService.swift */; };
 		B8C71E065C490BC6007AAB83 /* OpenFoodFactsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D129B46738ECD7413140E4B8 /* OpenFoodFactsService.swift */; };
 		C7D9F412F3607F657FC2F90A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D88A83F09D5107BD2F91B6 /* ContentView.swift */; };
-		D603754968FB3DDC851142C3 /* HistoricalSitesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3B5C6CD59451D65653D4CBC /* HistoricalSitesService.swift */; };
-		F9DA7941792485B67F0D8A96 /* PlantNetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E80C2053DD81E05DFA0E798 /* PlantNetService.swift */; };
+		E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,7 +46,7 @@
 		485A5E24F72ECE1BCAB326AD /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
 		53EA9B6366C106F6F991789D /* QuestionDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionDetector.swift; sourceTree = "<group>"; };
 		57FAB5518FCC84C79B8DCA9A /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
-		5E80C2053DD81E05DFA0E798 /* PlantNetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlantNetService.swift; sourceTree = "<group>"; };
+		5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRouter.swift; sourceTree = "<group>"; };
 		5F8AA23E7B6922ACB9BDD28E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6399D29511D56878F01F5204 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		64D1D8DEBD70176A818C90DB /* MusicRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicRecognitionService.swift; sourceTree = "<group>"; };
@@ -56,13 +56,12 @@
 		8206037DFED6213BCCDF3719 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		92D88A83F09D5107BD2F91B6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		98E55A0878E3210165D23655 /* ClaudeVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B13A8649154D52CA6B5FC3C0 /* VenueFinderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VenueFinderService.swift; sourceTree = "<group>"; };
 		D0BC356D66DFF1B96A3C1699 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		D129B46738ECD7413140E4B8 /* OpenFoodFactsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenFoodFactsService.swift; sourceTree = "<group>"; };
 		D1533204F4B0090BB686560D /* AudioSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionManager.swift; sourceTree = "<group>"; };
 		D3B5C6CD59451D65653D4CBC /* HistoricalSitesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricalSitesService.swift; sourceTree = "<group>"; };
 		D80B4A559F7D180D8DCE6033 /* ClaudeVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeVisionApp.swift; sourceTree = "<group>"; };
-		DD19FC7A9EAB6AC4A0D41F18 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RayBanDiagnosticsView.swift; sourceTree = "<group>"; };
 		ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		F0160BE25F91F5DE8B717653 /* RayBanManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RayBanManager.swift; sourceTree = "<group>"; };
 		F97A69C4B33A208E5B740199 /* ModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeManager.swift; sourceTree = "<group>"; };
@@ -104,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				92D88A83F09D5107BD2F91B6 /* ContentView.swift */,
+				E8381FD93B017E077F312388 /* RayBanDiagnosticsView.swift */,
 				04B5455D3CE56E037F92BB98 /* SettingsView.swift */,
 				D0BC356D66DFF1B96A3C1699 /* TranscriptView.swift */,
 			);
@@ -134,12 +134,7 @@
 				6399D29511D56878F01F5204 /* CameraManager.swift */,
 				3F3069E25AC77AD72DFEB548 /* ClaudeBridge.swift */,
 				704D8A46187AD105F8BE0E3F /* FrameSource.swift */,
-				D3B5C6CD59451D65653D4CBC /* HistoricalSitesService.swift */,
-				DD19FC7A9EAB6AC4A0D41F18 /* LocationService.swift */,
-				64D1D8DEBD70176A818C90DB /* MusicRecognitionService.swift */,
-				D129B46738ECD7413140E4B8 /* OpenFoodFactsService.swift */,
-				5E80C2053DD81E05DFA0E798 /* PlantNetService.swift */,
-				53EA9B6366C106F6F991789D /* QuestionDetector.swift */,
+				5A0AE6962B8B448B94B25ACE /* QuestionRouter.swift */,
 				F0160BE25F91F5DE8B717653 /* RayBanManager.swift */,
 				ED8607622DE3C3A56C5185B5 /* SpeechManager.swift */,
 				74D7FFE0B93074B83A77FC14 /* VehicleCheckService.swift */,
@@ -205,7 +200,7 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					19BFFEED1742A8DB7B08397C = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = RT57WEU2RX;
 					};
 				};
 			};
@@ -260,10 +255,8 @@
 				D603754968FB3DDC851142C3 /* HistoricalSitesService.swift in Sources */,
 				0F9556AEC7214D3195793E05 /* LocationService.swift in Sources */,
 				469CFAAD6292414FB1833B6F /* ModeManager.swift in Sources */,
-				29155B01A2A37CB3C93CB527 /* MusicRecognitionService.swift in Sources */,
-				B8C71E065C490BC6007AAB83 /* OpenFoodFactsService.swift in Sources */,
-				F9DA7941792485B67F0D8A96 /* PlantNetService.swift in Sources */,
-				15F718D66D6E25ABB0CF7BA9 /* QuestionDetector.swift in Sources */,
+				1FCF6858A2A8ECA1CCCFD4FA /* QuestionRouter.swift in Sources */,
+				E3EB8D61CD8994FBB35D3AA6 /* RayBanDiagnosticsView.swift in Sources */,
 				7B9EB5C35AA99FFC8E91F8B2 /* RayBanManager.swift in Sources */,
 				25A8B74F9507C6E8039685DE /* SessionViewModel.swift in Sources */,
 				856B82DACC849A0DC24A9525 /* SettingsView.swift in Sources */,
@@ -347,7 +340,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = RT57WEU2RX;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ClaudeVision/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -355,7 +348,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.claudevision.app;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hyperfood.claudevision;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -424,7 +417,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = RT57WEU2RX;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ClaudeVision/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -432,7 +425,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.claudevision.app;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hyperfood.claudevision;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;

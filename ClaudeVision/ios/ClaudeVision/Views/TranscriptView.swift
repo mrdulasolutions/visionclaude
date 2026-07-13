@@ -40,13 +40,13 @@ struct MessageBubble: View {
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
                 // Role label
                 Text(isUser ? "You" : "Claude")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.custom("Verdana-Bold", size: 10))
                     .foregroundColor(isUser ? .blue : .orange)
                     .textCase(.uppercase)
 
                 // Message text
                 Text(message.text)
-                    .font(.system(size: 14))
+                    .font(.custom("Verdana", size: 14))
                     .foregroundColor(.white)
                     .multilineTextAlignment(isUser ? .trailing : .leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -59,12 +59,12 @@ struct MessageBubble: View {
                             .foregroundColor(.purple)
                         ForEach(message.toolCalls.prefix(2), id: \.name) { tool in
                             Text(tool.name)
-                                .font(.system(size: 9))
+                                .font(.custom("Verdana", size: 9))
                                 .foregroundColor(.purple)
                         }
                         if message.toolCalls.count > 2 {
                             Text("+\(message.toolCalls.count - 2)")
-                                .font(.system(size: 9))
+                                .font(.custom("Verdana", size: 9))
                                 .foregroundColor(.gray)
                         }
                     }

@@ -157,22 +157,13 @@ struct ContentView: View {
     @ViewBuilder
     private var cameraLayer: some View {
         if viewModel.activeFrameSource == .iPhone {
-            ZStack {
-                CameraPreviewView(session: viewModel.cameraManager.captureSession)
-                if isCameraIdle {
-                    Color.black
-                    cameraIdleOverlay
-                }
-            }
+            CameraPreviewView(session: viewModel.cameraManager.captureSession)
         } else {
             ZStack {
                 RayBanVideoView(rayBanManager: viewModel.rayBanManager)
 
                 if viewModel.rayBanFrame == nil {
                     Color.black
-                    if isCameraIdle {
-                        cameraIdleOverlay
-                    } else {
                     VStack(spacing: 16) {
                         Image(systemName: "eyeglasses")
                             .font(.system(size: 52, weight: .thin))
@@ -203,36 +194,7 @@ struct ContentView: View {
                         .padding(.horizontal, 32)
                         .padding(.top, 8)
                     }
-                    }
                 }
-            }
-        }
-    }
-
-    /// True when the camera is intentionally off under the on-demand policy
-    /// (as opposed to connecting or errored).
-    private var isCameraIdle: Bool {
-        guard viewModel.config.onDemandCamera else { return false }
-        if case .disconnected = viewModel.frameSourceStatus { return true }
-        return false
-    }
-
-    private var cameraIdleOverlay: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "moon.zzz.fill")
-                .font(.system(size: 44, weight: .thin))
-                .foregroundStyle(.linearGradient(
-                    colors: [.anthropicOrange.opacity(0.6), .anthropicOrange.opacity(0.2)],
-                    startPoint: .top, endPoint: .bottom
-                ))
-            Text("Camera off — saving battery")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(0.85))
-            if viewModel.config.wakeWordEnabled {
-                Text("Say “Hey Claude” and ask about\nwhat you're looking at")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
             }
         }
     }

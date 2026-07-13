@@ -31,35 +31,20 @@ enum QuestionRouter {
         "qr_scanner", "document_reader", "inventory", "safety_inspector"
     ]
 
-    /// Multi-word phrases that reference the camera view.
-    private static let visionPhrases: [String] = [
-        "in front of me", "do you see", "can you see", "what do you see",
-        "what is that", "what's that", "look at that", "read that",
-        "is that", "on the screen", "over here", "right here",
-        "am i looking", "what am i", "take a look", "check this", "check that"
-    ]
+    /// Explicit camera trigger: saying "look at" ("hey claude, look at this label")
+    /// is what routes a question to vision. Any other phrasing is answered from
+    /// the spoken words alone, so the camera never starts by accident.
+    private static let lookAtPattern = try! NSRegularExpression(
+        pattern: "\\blook(?:ing)?\\s+at\\b",
+        options: [.caseInsensitive]
+    )
 
-    /// Single words (word-boundary matched) that almost always mean "use your eyes".
-    private static let visionWords: [String] = [
-        "this", "these", "those", "here", "see", "look", "looking", "watch",
-        "read", "describe", "identify", "scan", "count", "color", "colour",
-        "wearing", "holding", "screen", "sign", "label", "written", "front",
-        "picture", "photo", "camera"
-    ]
-
-    private static let visionWordPattern: NSRegularExpression = {
-        let alternation = visionWords.joined(separator: "|")
-        return try! NSRegularExpression(pattern: "\\b(?:\(alternation))\\b", options: [.caseInsensitive])
-    }()
-
-    /// True when answering `text` likely requires seeing a camera frame.
-    /// Biased toward vision: a false positive costs one JPEG, a false negative
-    /// leaves Claude blind to the thing the user is pointing at.
+    /// True when answering `text` requires a camera frame. Deliberately strict:
+    /// only the explicit "look at" phrase (or a mode that exists to use the
+    /// camera) turns vision on — everything else stays text-only.
     static func needsVision(_ text: String, mode: VisionMode) -> Bool {
         if alwaysVisionModes.contains(mode.id) { return true }
-        let lower = text.lowercased()
-        if visionPhrases.contains(where: { lower.contains($0) }) { return true }
-        let range = NSRange(lower.startIndex..., in: lower)
-        return visionWordPattern.firstMatch(in: lower, options: [], range: range) != nil
+        let range = NSRange(text.startIndex..., in: text)
+        return lookAtPattern.firstMatch(in: text, options: [], range: range) != nil
     }
 }

@@ -403,15 +403,18 @@ class SessionViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .assign(to: &$currentTranscription)
 
-        // Pre-warm the camera the moment the wake word shows up in the PARTIAL
-        // transcription — the stream cold-start then overlaps with the user
-        // finishing their sentence instead of adding to answer latency.
+        // Pre-warm the camera the moment the vision trigger ("look at") shows up
+        // in the PARTIAL transcription — the stream cold-start then overlaps with
+        // the user finishing their sentence instead of adding to answer latency.
+        // A bare wake word no longer pre-warms: most questions are text-only.
         speechManager.$transcribedText
             .receive(on: RunLoop.main)
             .sink { [weak self] text in
                 guard let self, self.config.wakeWordEnabled, self.config.onDemandCamera,
                       self.isConnected, !text.isEmpty,
-                      QuestionRouter.questionAfterWakeWord(in: text) != nil else { return }
+                      let question = QuestionRouter.questionAfterWakeWord(in: text),
+                      QuestionRouter.needsVision(question, mode: self.modeManager.activeMode)
+                else { return }
                 self.preWarmCamera()
             }
             .store(in: &cancellables)

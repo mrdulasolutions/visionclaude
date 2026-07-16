@@ -1,6 +1,7 @@
 import Foundation
 import Speech
 import AVFoundation
+import CryptoKit
 
 // MARK: - ElevenLabs Voice Directory
 
@@ -148,7 +149,55 @@ class SpeechManager: NSObject, ObservableObject {
     private var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM" // Rachel default
 
     // Fallback TTS — Apple (if no ElevenLabs key)
+    /// When true, replies use the local Apple voice even if ElevenLabs is
+    /// configured — set from ClaudeConfig.useAppleVoice.
+    var preferAppleVoice = true
+
     private let appleSynthesizer = AVSpeechSynthesizer()
+
+    // Instant local-only synth for canned acknowledgments ("On it."). A
+    // separate instance with no delegate: zero network latency, and its
+    // completion can never flip isSpeaking or restart the mic mid-thinking.
+    private let ackSynthesizer = AVSpeechSynthesizer()
+
+    // Pre-synthesized ElevenLabs audio for the canned acknowledgment phrases,
+    // keyed by exact text. The phrases are a small fixed set, so caching them
+    // up front lets the ack play in the assistant's real voice with the same
+    // zero latency as local TTS. Rebuilt when the voice changes.
+    private var ackAudioCache: [String: Data] = [:]
+    private var ackPhrases: [String] = []
+
+    // MARK: Disk cache for canned phrase audio
+
+    // ElevenLabs bills per character, so canned phrases are synthesized ONCE
+    // EVER per voice and kept on disk — re-synthesizing ~25 phrases on every
+    // app launch was silently draining the account's monthly quota.
+    private var ackCacheDir: URL {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("AckAudio", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Filenames are voice-scoped, so switching voices never overwrites and
+    /// switching back is free.
+    private func ackCacheURL(for text: String) -> URL {
+        let digest = SHA256.hash(data: Data("\(elevenLabsVoiceId)|\(text)".utf8))
+        let name = digest.map { String(format: "%02x", $0) }.joined().prefix(32)
+        return ackCacheDir.appendingPathComponent("\(name).mp3")
+    }
+
+    private func loadCachedAckAudio(for text: String) -> Data? {
+        if let data = ackAudioCache[text] { return data }
+        guard let data = try? Data(contentsOf: ackCacheURL(for: text)) else { return nil }
+        ackAudioCache[text] = data
+        return data
+    }
+
+    private func storeAckAudio(_ data: Data, for text: String) {
+        ackAudioCache[text] = data
+        try? data.write(to: ackCacheURL(for: text))
+    }
 
     // Pause detection
     private var silenceTimer: Timer?
@@ -165,6 +214,22 @@ class SpeechManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        // A mediaserverd crash invalidates every live audio object — the old
+        // engine then fails with 'what' (2003332927) forever. Replace it and
+        // let the session's supervisor restart listening on the fresh one.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                print("[Speech] Media services reset — rebuilding audio engine")
+                self.stopListening()
+                self.audioEngine = AVAudioEngine()
+                try? AudioSessionManager.shared.configureForVoiceChat()
+                self.onListeningStopped?()
+            }
+        }
         appleSynthesizer.delegate = self
     }
 
@@ -186,6 +251,28 @@ class SpeechManager: NSObject, ObservableObject {
         elevenLabsVoiceId = voiceId
         let voice = ElevenLabsVoice.voice(for: voiceId)
         print("[Speech] Voice changed to: \(voice.name)")
+        // Cached ack audio is in the old voice — rebuild in the new one.
+        ackAudioCache.removeAll()
+        prewarmAcknowledgments(ackPhrases)
+    }
+
+    /// Pre-synthesizes the canned acknowledgment phrases through ElevenLabs so
+    /// they play instantly in the assistant's voice. Runs in the background;
+    /// until a phrase lands in the cache it falls back to local Apple TTS.
+    func prewarmAcknowledgments(_ phrases: [String]) {
+        ackPhrases = phrases
+        guard let client = elevenLabsClient else { return }
+        let voiceId = elevenLabsVoiceId
+        Task {
+            var synthesized = 0
+            for phrase in phrases where loadCachedAckAudio(for: phrase) == nil {
+                if let data = try? await client.synthesize(text: phrase, voiceId: voiceId) {
+                    storeAckAudio(data, for: phrase)
+                    synthesized += 1
+                }
+            }
+            print("[Speech] Ack cache ready (\(ackAudioCache.count) in memory, \(synthesized) newly synthesized)")
+        }
     }
 
     // MARK: - Authorization
@@ -219,6 +306,9 @@ class SpeechManager: NSObject, ObservableObject {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.addsPunctuation = true
+        // "Aelita" isn't in the recognizer's vocabulary — without this bias the
+        // wake word comes back as arbitrary soundalikes and never matches.
+        request.contextualStrings = ["Flux", "OK Flux", "Okay Flux"]
 
         if speechRecognizer?.supportsOnDeviceRecognition == true {
             request.requiresOnDeviceRecognition = true
@@ -230,8 +320,12 @@ class SpeechManager: NSObject, ObservableObject {
             try startEngineWithTap()
         } catch {
             // A stale input graph after a route loss fails with -10868 on every
-            // start() no matter how long we wait. Rebuild the engine and retry
-            // once before giving up.
+            // start() no matter how long we wait — rebuild the engine and retry
+            // once. No settle sleep here: this runs on the main thread right
+            // after replies (route renegotiation time) and a sleep freezes the
+            // UI. The sample-rate guard in startEngineWithTap makes a too-early
+            // retry throw cheaply, and SessionViewModel's async retry ladder
+            // (0.6s spacing) provides the settle time off the main thread.
             print("[Speech] Engine start failed (\(error.localizedDescription)) — rebuilding audio engine")
             audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine = AVAudioEngine()
@@ -277,6 +371,17 @@ class SpeechManager: NSObject, ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Audio input not ready — try again"])
         }
 
+        // The engine's input graph must agree with the live hardware rate. While
+        // a Bluetooth HFP route is renegotiating (glasses mic arriving at 16kHz,
+        // iPhone mic at 48kHz), even a FRESH engine can read the outgoing rate —
+        // engine.start() then dies deep in CoreAudio with -10868. Fail fast here
+        // instead, so the retry ladder waits the transition out.
+        let hwSampleRate = AVAudioSession.sharedInstance().sampleRate
+        guard recordingFormat.sampleRate == hwSampleRate else {
+            throw NSError(domain: "SpeechManager", code: -10868,
+                         userInfo: [NSLocalizedDescriptionKey: "Audio route still settling (mic \(Int(hwSampleRate))Hz, engine \(Int(recordingFormat.sampleRate))Hz) — try again"])
+        }
+
         // Pass `nil` (not the captured `recordingFormat`) so the engine resolves the
         // bus's CURRENT native format at install time. If the route changes between the
         // read above and here — e.g. Bluetooth HFP glasses (16kHz) dropping to the iPhone
@@ -287,8 +392,22 @@ class SpeechManager: NSObject, ObservableObject {
             self?.recognitionRequest?.append(buffer)
         }
 
+        // An inactive session makes engine.start() fail with the opaque
+        // 'what' error (2003332927) — activation can silently lapse across
+        // route flaps and interruptions, so re-assert it here.
+        try? AVAudioSession.sharedInstance().setActive(true)
+
         audioEngine.prepare()
         try audioEngine.start()
+    }
+
+    /// Nuclear option for stuck CoreAudio states: discard the engine
+    /// entirely. The supervisor calls this after repeated failed revives.
+    func rebuildEngine() {
+        stopListening()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine = AVAudioEngine()
+        print("[Speech] Audio engine rebuilt on request")
     }
 
     func stopListening() {
@@ -348,18 +467,84 @@ class SpeechManager: NSObject, ObservableObject {
     // MARK: - TTS
 
     func speak(_ text: String) {
+        // The real reply supersedes any still-playing acknowledgment.
+        ackSynthesizer.stopSpeaking(at: .immediate)
+        // The mic may still be open (it listens during thinking so "stop"
+        // works) — close it so the reply doesn't transcribe itself.
+        if isListening { stopListening() }
         isSpeaking = true
 
-        if let client = elevenLabsClient {
+        if !preferAppleVoice, let client = elevenLabsClient {
             speakWithElevenLabs(client, text: text)
         } else {
             speakWithApple(text)
         }
     }
 
+    /// Speaks a short canned confirmation — no state changes, fire-and-forget.
+    /// Always local Apple TTS: ElevenLabs is reserved for AI replies (it bills
+    /// per character, and these fire on every interaction).
+    func speakAcknowledgment(_ text: String) {
+        ackSynthesizer.stopSpeaking(at: .immediate)
+        speakAckWithApple(text)
+    }
+
+    /// One consistent local voice for EVERYTHING the app says with Apple TTS —
+    /// replies, acknowledgments and confirmations previously picked different
+    /// voices, which sounded like two assistants. Siri's own voices aren't
+    /// available to third-party apps, so this selects the most natural
+    /// installed female English voice: UK English first, premium quality over
+    /// enhanced over default.
+    static let appleVoice: AVSpeechSynthesisVoice? = {
+        // Female is a hard requirement, not a tiebreaker — an all-male
+        // installed set is the only case that falls through. Within the
+        // female pool: British English first, then voice quality.
+        func rank(_ v: AVSpeechSynthesisVoice) -> Int {
+            var score = 0
+            if v.language == "en-GB" { score += 40 }
+            else if v.language.hasPrefix("en") { score += 20 }
+            switch v.quality {
+            case .premium: score += 30
+            case .enhanced: score += 20
+            default: break
+            }
+            return score
+        }
+        let english = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+        let female = english.filter { $0.gender == .female }
+        // Known-female fallback for voices that report .unspecified gender
+        let knownFemaleNames: Set<String> = ["samantha", "kate", "serena", "martha", "stephanie", "ava", "allison", "susan", "zoe", "nicky", "moira", "karen", "tessa"]
+        let namedFemale = english.filter { knownFemaleNames.contains($0.name.lowercased().components(separatedBy: " ").first ?? "") }
+        let pool = !female.isEmpty ? female : (!namedFemale.isEmpty ? namedFemale : english)
+        let voice = pool.max { rank($0) < rank($1) }
+        print("[Speech] Apple voice: \(voice?.name ?? "system default") (\(voice?.language ?? "?"), gender \(voice?.gender.rawValue ?? -1), quality \(voice?.quality.rawValue ?? 0))")
+        return voice
+    }()
+
+    /// Last-resort local voice, used only when ElevenLabs is unavailable.
+    private func speakAckWithApple(_ text: String) {
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = Self.appleVoice ?? AVSpeechSynthesisVoice(language: "en-GB")
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        ackSynthesizer.speak(utterance)
+    }
+
+    /// Speaks arbitrary short text in the ElevenLabs voice without touching
+    /// speech state — used to confirm a captured quiz question back to the
+    /// user while the answer is being generated. Dynamic text can't be
+    /// pre-cached, so this pays one synthesis round trip; if the real answer
+    /// starts speaking first, the late confirmation is dropped.
+    func speakConfirmation(_ text: String) {
+        // Always local Apple TTS — echoing every quiz question through
+        // ElevenLabs was the single biggest credit spender.
+        ackSynthesizer.stopSpeaking(at: .immediate)
+        speakAckWithApple(text)
+    }
+
     func stopSpeaking() {
         AudioDataPlayer.shared.stop()
         appleSynthesizer.stopSpeaking(at: .immediate)
+        ackSynthesizer.stopSpeaking(at: .immediate)
         isSpeaking = false
     }
 
@@ -392,20 +577,19 @@ class SpeechManager: NSObject, ObservableObject {
     }
 
     private func speakWithElevenLabs(_ client: ElevenLabsTTSClient, text: String) {
+        // Pre-cached phrases (the greeting, canned confirmations) play without
+        // touching the network — immune to the quota/rate-limit fallback below.
+        if let cached = loadCachedAckAudio(for: text) {
+            playElevenLabsData(cached)
+            return
+        }
         Task {
             do {
                 let voiceName = ElevenLabsVoice.voice(for: elevenLabsVoiceId).name
                 print("[Speech] ElevenLabs: synthesizing (voice: \(voiceName))...")
                 let audioData = try await client.synthesize(text: text, voiceId: elevenLabsVoiceId)
                 print("[Speech] ElevenLabs: received \(audioData.count) bytes, playing...")
-
-                AudioDataPlayer.shared.play(data: audioData) {
-                    Task { @MainActor in
-                        self.isSpeaking = false
-                        self.onSpeechFinished?()
-                        print("[Speech] ElevenLabs playback finished")
-                    }
-                }
+                playElevenLabsData(audioData)
             } catch {
                 print("[Speech] ElevenLabs error: \(error.localizedDescription)")
                 print("[Speech] Falling back to Apple TTS...")
@@ -414,17 +598,20 @@ class SpeechManager: NSObject, ObservableObject {
         }
     }
 
+    private func playElevenLabsData(_ data: Data) {
+        AudioDataPlayer.shared.play(data: data) {
+            Task { @MainActor in
+                self.isSpeaking = false
+                self.onSpeechFinished?()
+                print("[Speech] ElevenLabs playback finished")
+            }
+        }
+    }
+
     private func speakWithApple(_ text: String) {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.voice = Self.appleVoice ?? AVSpeechSynthesisVoice(language: "en-GB")
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-
-        if let premiumVoice = AVSpeechSynthesisVoice.speechVoices().first(where: {
-            $0.language == "en-US" && $0.quality == .enhanced
-        }) {
-            utterance.voice = premiumVoice
-        }
-
         appleSynthesizer.speak(utterance)
     }
 

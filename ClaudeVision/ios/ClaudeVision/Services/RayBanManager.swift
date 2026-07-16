@@ -45,6 +45,9 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     private var registrationTask: Task<Void, Never>?
     private var streamAdded = false
 
+    /// Video preset from Settings: "fullhd" | "hfr" | "hires" — applied on the next stream start.
+    var videoPreset: String = "fullhd"
+
     private var frameInterval: TimeInterval = 1.0
     private var jpegQuality: CGFloat = 0.5
     private var lastCaptureTime: Date = .distantPast
@@ -79,14 +82,43 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
             registrationState = "unavailable"
             return
         }
-        let wearables = Wearables.shared
+        // The DAT SDK's CBCentralManager powers on asynchronously after
+        // configure(); touching Wearables APIs in the first moments races it
+        // and logs "API MISUSE: can only accept this command while in the
+        // powered on state" / "XPC connection invalid". Give the Bluetooth
+        // stack a beat before the first call.
         registrationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            let wearables = Wearables.shared
+
+            // Current state first, then follow the stream.
+            switch wearables.registrationState {
+            case .registered:
+                isRegistered = true
+                registrationState = "registered"
+            case .registering:
+                registrationState = "registering"
+            case .available, .unavailable:
+                registrationState = "unregistered"
+            @unknown default:
+                break
+            }
+
             for await state in wearables.registrationStateStream() {
                 switch state {
                 case .registered:
                     self.registrationState = "registered"
                     self.isRegistered = true
                     print("[RayBan] Registration complete")
+                    // Paired glasses at rest are STANDBY from the moment the
+                    // app launches — before this, the status stayed
+                    // "Disconnected" until the first stream ran, which made a
+                    // healthy connection look broken on the main screen.
+                    if !self.isRunning, case .disconnected = self.connectionStatus,
+                       !Wearables.shared.devices.isEmpty {
+                        self.connectionStatus = .standby
+                    }
                 case .registering:
                     self.registrationState = "registering"
                     print("[RayBan] Registration in progress...")
@@ -98,20 +130,6 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
                     break
                 }
             }
-        }
-
-        // Check current state
-        let currentState = wearables.registrationState
-        switch currentState {
-        case .registered:
-            isRegistered = true
-            registrationState = "registered"
-        case .registering:
-            registrationState = "registering"
-        case .available, .unavailable:
-            registrationState = "unregistered"
-        @unknown default:
-            break
         }
     }
 
@@ -315,7 +333,16 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
     /// Adds the camera stream to an already-`.started` session, wires listeners, starts it.
     private func addStreamOnce(to deviceSession: DeviceSession) {
         guard !streamAdded else { return }
-        let config = StreamConfiguration(videoCodec: .raw, resolution: .high, frameRate: 30)
+        // Preset → DAT stream parameters. The SDK offers resolution
+        // (high/medium/low) and frame rate only — stabilisation and clip
+        // length are native Meta capture features it does not expose.
+        let config: StreamConfiguration
+        switch videoPreset {
+        case "hfr":   config = StreamConfiguration(videoCodec: .raw, resolution: .medium, frameRate: 60)
+        case "hires": config = StreamConfiguration(videoCodec: .raw, resolution: .high, frameRate: 24)
+        default:      config = StreamConfiguration(videoCodec: .raw, resolution: .high, frameRate: 30)
+        }
+        print("[RayBan] Stream config: preset=\(videoPreset) resolution=\(config.resolution) fps=\(config.frameRate)")
         let session: MWDATCamera.Stream
         do {
             guard let stream = try deviceSession.addStream(config: config) else {
@@ -392,6 +419,28 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
     }
 
+    /// The glasses' Bluetooth audio vanished — user walked out of range.
+    /// Reflect it in the status so the UI doesn't claim a idle-but-ready
+    /// connection that isn't there.
+    func noteGlassesOutOfRange() {
+        guard !isRunning else { return }  // a live stream reports its own failures
+        if case .standby = connectionStatus {
+            connectionStatus = .disconnected
+            print("[RayBan] Glasses out of range — standby → disconnected")
+        }
+    }
+
+    /// The glasses' Bluetooth audio is back — restore standby so the next
+    /// vision question streams without any manual reconnect.
+    func noteGlassesReturned() {
+        guard !isRunning, isRegistered, !Wearables.shared.devices.isEmpty else { return }
+        if case .disconnected = connectionStatus {
+            connectionStatus = .standby
+            lastError = ""
+            print("[RayBan] Glasses back in range — disconnected → standby")
+        }
+    }
+
     func stop() {
         // Cancel the observers BEFORE stopping the session. Otherwise the session's
         // async `.stopping` event lands after this method sets .disconnected and
@@ -408,6 +457,15 @@ class RayBanManager: NSObject, ObservableObject, FrameSource {
         stream?.stop()
         deviceSession?.stop()
         streamAdded = false
+        // A deliberate stop with the glasses still registered is STANDBY, not
+        // disconnected — the device is paired and one question away from
+        // streaming again. Without this the UI says "Disconnected" whenever
+        // the on-demand camera idles out, which reads as a broken connection.
+        if isRegistered && datDeviceCount > 0 {
+            connectionStatus = .standby
+        } else {
+            connectionStatus = .disconnected
+        }
         // Glasses no longer streaming — allow voice audio to use them again.
         AudioSessionManager.shared.reserveGlassesForCamera = false
         stream = nil

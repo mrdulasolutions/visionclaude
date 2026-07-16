@@ -139,10 +139,10 @@ class ClaudeBridge: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     // MARK: - Send Messages
 
     /// Send text + optional image via WebSocket (channel mode)
-    func sendMessage(text: String, image: Data? = nil, source: String = "iphone") {
+    func sendMessage(text: String, image: Data? = nil, source: String = "iphone", tier: String = "fast") {
         guard mode == .channel else {
             // Fallback to REST
-            Task { try? await chatREST(text: text, images: image.map { [$0] } ?? []) }
+            Task { try? await chatREST(text: text, images: image.map { [$0] } ?? [], tier: tier) }
             return
         }
 
@@ -150,6 +150,7 @@ class ClaudeBridge: NSObject, ObservableObject, URLSessionWebSocketDelegate {
             "id": "ios-\(Date().timeIntervalSince1970)",
             "text": text,
             "source": source,
+            "tier": tier,
         ]
 
         if let imageData = image {
@@ -208,9 +209,9 @@ class ClaudeBridge: NSObject, ObservableObject, URLSessionWebSocketDelegate {
 
     // MARK: - Gateway Mode (REST fallback)
 
-    func chatREST(text: String, images: [Data] = []) async throws -> ChatResponse {
+    func chatREST(text: String, images: [Data] = [], tier: String = "fast") async throws -> ChatResponse {
         let base64Images = images.map { $0.base64EncodedString() }
-        let request = ChatRequest(text: text, images: base64Images, conversation_id: conversationId)
+        let request = ChatRequest(text: text, images: base64Images, conversation_id: conversationId, tier: tier)
 
         var urlRequest = URLRequest(url: config.chatURL)
         urlRequest.httpMethod = "POST"

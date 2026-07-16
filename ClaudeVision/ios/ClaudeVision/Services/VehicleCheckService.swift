@@ -85,12 +85,15 @@ enum PlateReader {
     }
 }
 
-/// Queries the DVLA Vehicle Enquiry Service (VES) for a vehicle's tax and MOT
-/// status. Free API key from the DVLA developer portal. The VRN travels in the
-/// request body, never the URL — it's classed as personal data.
+/// Checks a vehicle's tax and MOT status via the public gov.uk service behind
+/// https://www.gov.uk/check-vehicle-tax (vehicleenquiry.service.gov.uk). No
+/// API key needed: the service walks the same three-step wizard a person does
+/// in Safari — start page, submit registration, confirm vehicle — and parses
+/// the results HTML. One lookup per user question; the VRN travels in POST
+/// bodies, never the URL — it's classed as personal data.
 final class VehicleCheckService {
 
-    struct Vehicle: Decodable {
+    struct Vehicle {
         let registrationNumber: String
         let taxStatus: String?
         let taxDueDate: String?
@@ -122,49 +125,173 @@ final class VehicleCheckService {
     }
 
     enum LookupError: LocalizedError {
-        case noAPIKey
-        case invalidVRN          // 400
-        case notFound            // 404
+        case notFound            // wizard lands on /VehicleNotFound
         case rateLimited         // 429
-        case serviceUnavailable  // 5xx
+        case serviceUnavailable  // non-200 anywhere in the flow
+        case pageChanged         // 200 but the HTML no longer parses
 
         var errorDescription: String? {
             switch self {
-            case .noAPIKey: return "No DVLA API key configured"
-            case .invalidVRN: return "DVLA rejected the registration format"
             case .notFound: return "No vehicle found for that registration"
-            case .rateLimited: return "DVLA rate limit hit — try again in a moment"
-            case .serviceUnavailable: return "DVLA service unavailable — try again later"
+            case .rateLimited: return "gov.uk rate limit hit — try again in a moment"
+            case .serviceUnavailable: return "gov.uk vehicle check unavailable — try again later"
+            case .pageChanged: return "The gov.uk vehicle check page has changed and couldn't be read"
             }
         }
     }
 
     static let askMIDURL = URL(string: "https://www.askmid.com/")!
 
-    private let endpoint = URL(string: "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles")!
+    private let startURL = URL(string: "https://vehicleenquiry.service.gov.uk/?locale=en")!
+    private let saveURL = URL(string: "https://vehicleenquiry.service.gov.uk/vehicle-enquiry/save?locale=en")!
     private var cache: [String: Vehicle] = [:]
 
-    func fetchVehicle(vrn: String, apiKey: String) async throws -> Vehicle {
-        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { throw LookupError.noAPIKey }
+    // Ephemeral session so the wizard's cookies live here, not in the app's
+    // shared jar. Re-fetching the start page each lookup resets the wizard.
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.httpAdditionalHeaders = [
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+            "Accept-Language": "en-GB,en;q=0.9",
+        ]
+        return URLSession(configuration: config)
+    }()
+
+    func fetchVehicle(vrn: String) async throws -> Vehicle {
         if let cached = cache[vrn] { return cached }
 
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue(key, forHTTPHeaderField: "x-api-key")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["registrationNumber": vrn])
+        // Step 1: start page — establishes the session cookie and CSRF token.
+        let start = try await load(URLRequest(url: startURL))
+        guard let startToken = Self.authenticityToken(in: start.html) else {
+            throw LookupError.pageChanged
+        }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
-        case 200:
-            let vehicle = try JSONDecoder().decode(Vehicle.self, from: data)
-            cache[vrn] = vehicle
-            return vehicle
-        case 400: throw LookupError.invalidVRN
-        case 404: throw LookupError.notFound
+        // Step 2: submit the registration. Redirects to /ConfirmVehicle on a
+        // hit, /VehicleNotFound on a miss.
+        let confirm = try await load(formPOST([
+            ("authenticity_token", startToken),
+            ("wizard_vehicle_enquiry_capture_vrn[vrn]", vrn),
+        ]))
+        if confirm.path.contains("VehicleNotFound") { throw LookupError.notFound }
+        guard confirm.path.contains("ConfirmVehicle"),
+              let confirmToken = Self.authenticityToken(in: confirm.html) else {
+            throw LookupError.pageChanged
+        }
+
+        // Step 3: answer "Yes" to "Is this the vehicle?" — lands on the
+        // /VehicleFound results page.
+        let result = try await load(formPOST([
+            ("authenticity_token", confirmToken),
+            ("wizard_vehicle_enquiry_capture_confirm_vehicle[confirmed]", "Yes"),
+        ]))
+        guard result.path.contains("VehicleFound"),
+              let vehicle = Self.parseVehicle(html: result.html, vrn: vrn) else {
+            throw LookupError.pageChanged
+        }
+        cache[vrn] = vehicle
+        return vehicle
+    }
+
+    // MARK: - HTTP plumbing
+
+    private func load(_ request: URLRequest) async throws -> (html: String, path: String) {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw LookupError.serviceUnavailable }
+        switch http.statusCode {
+        case 200: break
         case 429: throw LookupError.rateLimited
         default: throw LookupError.serviceUnavailable
+        }
+        guard let html = String(data: data, encoding: .utf8) else { throw LookupError.pageChanged }
+        return (html, http.url?.path ?? "")
+    }
+
+    private func formPOST(_ fields: [(String, String)]) -> URLRequest {
+        var request = URLRequest(url: saveURL)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._*")
+        let body = fields.map { name, value in
+            let n = name.addingPercentEncoding(withAllowedCharacters: allowed) ?? name
+            let v = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+            return "\(n)=\(v)"
+        }.joined(separator: "&")
+        request.httpBody = body.data(using: .utf8)
+        return request
+    }
+
+    // MARK: - HTML parsing (static so specs can exercise it directly)
+
+    /// The Rails CSRF token from the enquiry form. Pages carry two — the
+    /// cookie-banner form's first — so take the last match.
+    static func authenticityToken(in html: String) -> String? {
+        matches(#"name="authenticity_token" value="([^"]+)""#, in: html).last
+    }
+
+    /// The `<dd>` value of a `govuk-summary-list__row` by its id attribute.
+    /// "Not available" collapses to nil.
+    static func summaryValue(id: String, in html: String) -> String? {
+        guard let raw = matches(#"id="\#(id)"[^>]*>.*?<dd>\s*([^<]*?)\s*</dd>"#, in: html).first,
+              !raw.isEmpty, raw != "Not available" else { return nil }
+        return raw
+    }
+
+    /// Builds a Vehicle from the /VehicleFound results page. Statuses come
+    /// from the visually-hidden panel sentences ("Vehicle X is Taxed",
+    /// "Vehicle X has a valid MOT certificate"); dates from the panel bodies.
+    static func parseVehicle(html: String, vrn: String) -> Vehicle? {
+        // Slice the two status panels; MOT panel follows the tax panel.
+        guard let taxRange = html.range(of: #"id="tax-status-panel""#, options: .regularExpression),
+              let motRange = html.range(of: #"id="mot-status-panel""#, options: .regularExpression),
+              taxRange.upperBound <= motRange.lowerBound else { return nil }
+        let taxPanel = String(html[taxRange.upperBound..<motRange.lowerBound])
+        let motPanel = String(html[motRange.upperBound...])
+
+        let taxStatus = matches(#"Vehicle\s+[A-Z0-9]+\s+is\s+([^<]+)"#, in: taxPanel).first
+            ?? summaryValue(id: "vehicleStatus", in: html)
+        let taxDueDate = matches(#"(?:Tax due|Expires):\s*([^<]+)"#, in: taxPanel).first
+
+        // "has a valid MOT certificate" / "does not have a valid MOT" / no
+        // details held — keep the raw phrase when it doesn't map cleanly, it
+        // still reads fine in the prompt summary.
+        var motStatus: String?
+        if let phrase = matches(#"Vehicle\s+[A-Z0-9]+\s+([^<]+)"#, in: motPanel).first {
+            if phrase.localizedCaseInsensitiveContains("not") {
+                motStatus = "Not valid"
+            } else if phrase.localizedCaseInsensitiveContains("valid MOT") {
+                motStatus = "Valid"
+            } else {
+                motStatus = phrase
+            }
+        }
+        let motExpiryDate = matches(#"Expires:\s*([^<]+)"#, in: motPanel).first
+
+        return Vehicle(
+            registrationNumber: vrn,
+            taxStatus: taxStatus,
+            taxDueDate: taxDueDate,
+            motStatus: motStatus,
+            motExpiryDate: motExpiryDate,
+            make: summaryValue(id: "make", in: html),
+            colour: summaryValue(id: "colour", in: html),
+            fuelType: summaryValue(id: "fuel_type", in: html),
+            engineCapacity: summaryValue(id: "engine_capacity", in: html).flatMap { Int($0.filter(\.isNumber)) },
+            yearOfManufacture: summaryValue(id: "year_of_manufacture", in: html).flatMap { Int($0.filter(\.isNumber)) },
+            co2Emissions: summaryValue(id: "co2_emissions", in: html).flatMap { Int($0.filter(\.isNumber)) },
+            markedForExport: summaryValue(id: "marked_for_export", in: html).map { $0 == "Yes" }
+        )
+    }
+
+    /// First capture group of every match, whitespace-collapsed and trimmed.
+    private static func matches(_ pattern: String, in html: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else { return [] }
+        let range = NSRange(html.startIndex..., in: html)
+        return regex.matches(in: html, range: range).compactMap { match in
+            guard match.numberOfRanges > 1, let r = Range(match.range(at: 1), in: html) else { return nil }
+            let value = html[r].replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.isEmpty ? nil : value
         }
     }
 }

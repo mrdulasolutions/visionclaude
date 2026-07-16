@@ -24,7 +24,7 @@ export function createChatRouter(
 
       // Queue the API call to prevent concurrent races
       const chatFn = () =>
-        claudeClient.chat(messages, body.text || "", body.images);
+        claudeClient.chat(messages, body.text || "", body.images, body.tier ?? "fast");
 
       const { responseText, toolCalls } = requestQueue
         ? await requestQueue.enqueue(chatFn)

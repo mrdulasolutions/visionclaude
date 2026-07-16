@@ -15,6 +15,7 @@ export function createConfigRouter(claudeClient: ClaudeClient): Router {
     const updates: Record<string, unknown> = {};
     if (body.system_prompt !== undefined) updates.systemPrompt = body.system_prompt;
     if (body.model !== undefined) updates.model = body.model;
+    if (body.fast_model !== undefined) updates.fastModel = body.fast_model;
     if (body.max_tokens !== undefined) updates.maxTokens = body.max_tokens;
 
     claudeClient.updateConfig(updates);

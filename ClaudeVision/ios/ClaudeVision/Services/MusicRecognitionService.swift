@@ -1,5 +1,6 @@
 import Foundation
 import ShazamKit
+import AVFoundation
 
 /// Identifies songs playing nearby using ShazamKit (Apple's Shazam catalog — no API key).
 /// Uses the active microphone route, so with Meta glasses connected it hears
@@ -39,6 +40,18 @@ final class MusicRecognitionService {
     /// Resolves when ShazamKit finds a match, decides there is none, or the
     /// timeout cancels the session.
     func identify(timeout: TimeInterval = 15) async -> RecognitionOutcome {
+        // The first attempt races the just-stopped speech-recognition tap:
+        // over Bluetooth HFP the mic takes a beat to hand over, and ShazamKit
+        // fails with error 202 before it ever hears audio. Observed pattern in
+        // live use: first try 202, second try listens fine — so absorb that
+        // with one quiet retry after letting the route settle.
+        let first = await attempt(timeout: timeout, number: 1)
+        guard case .failed = first, !timedOut else { return first }
+        try? await Task.sleep(nanoseconds: 700_000_000)
+        return await attempt(timeout: timeout, number: 2)
+    }
+
+    private func attempt(timeout: TimeInterval, number: Int) async -> RecognitionOutcome {
         let session = SHManagedSession()
         activeSession = session
         timedOut = false
@@ -51,7 +64,17 @@ final class MusicRecognitionService {
         }
         defer { timeoutTask.cancel() }
 
+        let av = AVAudioSession.sharedInstance()
+        let inputName = av.currentRoute.inputs.map(\.portName).joined(separator: "+")
+        print("[Shazam] attempt \(number): input=\(inputName.isEmpty ? "NONE" : inputName) category=\(av.category.rawValue) mode=\(av.mode.rawValue) sr=\(av.sampleRate)")
+
+        // Pre-arms the capture pipeline; cheaper than discovering the mic
+        // isn't ready inside result().
+        await session.prepare()
+        let started = Date()
+
         let result = await session.result()
+        print("[Shazam] attempt \(number): resolved after \(String(format: "%.1f", Date().timeIntervalSince(started)))s (timedOut=\(timedOut))")
         switch result {
         case .match(let match):
             guard let item = match.mediaItems.first else { return .noMatch }
@@ -65,6 +88,7 @@ final class MusicRecognitionService {
         case .noMatch:
             return .noMatch
         case .error(let error, _):
+            print("[Shazam] attempt \(number) error: \(error)")
             // A timeout cancel surfaces here — report it as "no match" rather than a failure
             return timedOut ? .noMatch : .failed(error.localizedDescription)
         }

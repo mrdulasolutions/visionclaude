@@ -35,7 +35,6 @@ final class ClaudeConfigTests: XCTestCase {
         XCTAssertEqual(config.elevenLabsAPIKey, "el-key")
         // New fields fall back to defaults instead of failing the whole decode
         XCTAssertEqual(config.plantNetAPIKey, "")
-        XCTAssertEqual(config.dvlaAPIKey, "")
         XCTAssertEqual(config.googlePlacesAPIKey, "")
         XCTAssertEqual(config.tripAdvisorAPIKey, "")
         XCTAssertFalse(config.foodAvoidUPF)
@@ -56,7 +55,6 @@ final class ClaudeConfigTests: XCTestCase {
     func testExtensionFieldsRoundTrip() throws {
         var config = ClaudeConfig()
         config.plantNetAPIKey = "pn"
-        config.dvlaAPIKey = "dvla"
         config.googlePlacesAPIKey = "gp"
         config.tripAdvisorAPIKey = "ta"
         config.foodAvoidUPF = true
@@ -65,7 +63,6 @@ final class ClaudeConfigTests: XCTestCase {
 
         let decoded = try JSONDecoder().decode(ClaudeConfig.self, from: JSONEncoder().encode(config))
         XCTAssertEqual(decoded.plantNetAPIKey, "pn")
-        XCTAssertEqual(decoded.dvlaAPIKey, "dvla")
         XCTAssertEqual(decoded.googlePlacesAPIKey, "gp")
         XCTAssertEqual(decoded.tripAdvisorAPIKey, "ta")
         XCTAssertTrue(decoded.foodAvoidUPF)

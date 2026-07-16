@@ -50,6 +50,16 @@ final class ModeManagerTests: XCTestCase {
         XCTAssertEqual(manager.mode(matchingVoiceCommand: "mechanik mode")?.id, "mechanic")
     }
 
+    func testFluxAddressedModeSwitches() {
+        // "Flux mode plants" / "Aelita Flux mode plants" — the assistant's
+        // name tokens are stripped as filler so only the mode name remains
+        let manager = ModeManager()
+        XCTAssertEqual(manager.mode(matchingVoiceCommand: "flux mode plants")?.id, "plants")
+        XCTAssertEqual(manager.mode(matchingVoiceCommand: "aelita flux mode plants")?.id, "plants")
+        XCTAssertEqual(manager.mode(matchingVoiceCommand: "flex mode vehicle")?.id, "vehicle",
+                       "'flex' is a common mishearing of 'flux'")
+    }
+
     func testUtteranceWithoutModeKeywordIsIgnored() {
         let manager = ModeManager()
         XCTAssertNil(manager.mode(matchingVoiceCommand: "plumber"))

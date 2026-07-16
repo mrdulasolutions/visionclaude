@@ -84,7 +84,11 @@ class ModeManager: ObservableObject {
         // questions that happen to mention a mode name aren't hijacked.
         guard tokens.contains("mode"), tokens.count <= 6 else { return nil }
 
-        let filler: Set<String> = ["mode", "switch", "change", "go", "to", "activate", "enter", "set", "the", "please", "open", "use"]
+        // "flux" (and its common mishearings) plus the "ok" prefix are the assistant's
+        // address — "OK Flux mode plants" and "Flux mode plants" must reduce
+        // to just the mode name.
+        let filler: Set<String> = ["mode", "switch", "change", "go", "to", "activate", "enter", "set", "the", "please", "open", "use",
+                                   "flux", "flex", "plex", "hey", "ok", "okay"]
         let candidate = tokens.filter { !filler.contains($0) }.joined(separator: " ")
         guard !candidate.isEmpty else { return nil }
 

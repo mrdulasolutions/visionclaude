@@ -4,6 +4,7 @@ struct ChatRequest: Encodable {
     let text: String
     let images: [String] // base64 JPEG strings
     let conversation_id: String?
+    let tier: String     // "fast" (Haiku, default) or "smart" (Sonnet escalation)
 }
 
 struct ChatResponse: Decodable {

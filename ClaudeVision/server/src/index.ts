@@ -55,7 +55,11 @@ async function main() {
   // ── Server config ──
   const config: ServerConfig = {
     systemPrompt,
-    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514",
+    // Smart tier: escalations ("tell me more"). The old default,
+    // claude-sonnet-4-20250514, is deprecated (retires June 2026).
+    model: process.env.CLAUDE_MODEL || "claude-sonnet-5",
+    // Fast tier: the default for voice questions — lowest latency.
+    fastModel: process.env.CLAUDE_FAST_MODEL || "claude-haiku-4-5",
     maxTokens: 4096,
   };
 

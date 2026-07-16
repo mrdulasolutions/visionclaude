@@ -33,6 +33,9 @@ struct SettingsView: View {
                 // -- Camera Source --
                 cameraSection
 
+                // -- Video Settings --
+                videoSettingsSection
+
                 // -- Hands-Free & Battery --
                 handsFreeSection
 
@@ -56,6 +59,9 @@ struct SettingsView: View {
 
                 // -- Vehicle Mode --
                 vehicleSection
+
+                // -- Developer --
+                developerSection
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Settings")
@@ -366,13 +372,36 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Video Settings
+
+    private var videoSettingsSection: some View {
+        Section {
+            Picker(selection: $config.glassesVideoPreset) {
+                Text("Full HD — 1080p, 30 fps").tag("fullhd")
+                Text("High Frame Rate — 60 fps").tag("hfr")
+                Text("High Resolution — max detail, 24 fps").tag("hires")
+            } label: {
+                HStack(spacing: 14) {
+                    settingIcon("video.fill", color: .indigo)
+                    Text("Glasses Video Quality")
+                }
+            }
+        } header: {
+            Label("Video Settings", systemImage: "video.badge.waveform")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("Applies the next time the glasses stream starts. Meta's streaming SDK exposes resolution and frame rate only — video stabilisation and clip length are controlled by the glasses themselves in the Meta AI app.")
+        }
+    }
+
     // MARK: - Hands-Free & Battery
 
     private var handsFreeSection: some View {
         Section {
             HStack(spacing: 14) {
                 settingIcon("waveform.and.mic", color: .teal)
-                Toggle("“Hey Claude” Wake Word", isOn: $config.wakeWordEnabled)
+                Toggle("“OK, Flux” Wake Phrase", isOn: $config.wakeWordEnabled)
             }
 
             HStack(spacing: 14) {
@@ -399,7 +428,7 @@ struct SettingsView: View {
                 .textCase(nil)
                 .font(.subheadline.weight(.semibold))
         } footer: {
-            Text("With the wake word on, speech is only sent after you say “Hey Claude.” On-demand camera keeps video off until a question needs vision, then shuts it down again after the idle timeout — a major battery saving for the glasses and phone.")
+            Text("With the wake word on, speech is only sent after you say “OK, Flux.” On-demand camera keeps video off until a question needs vision, then shuts it down again after the idle timeout — a major battery saving for the glasses and phone.")
         }
     }
 
@@ -450,15 +479,6 @@ struct SettingsView: View {
                 Text(rayBanManager.isRegistered ? "Registered" : "Not Registered")
                     .font(.subheadline)
                     .foregroundStyle(rayBanManager.isRegistered ? .green : accentColor)
-            }
-
-            // Live pipeline diagnostics (only relevant when glasses are the active source)
-            if activeFrameSource == .rayBan {
-                RayBanDiagnosticsView(
-                    rayBanManager: rayBanManager,
-                    frameSourceStatus: frameSourceStatus
-                )
-                .padding(.vertical, 4)
             }
 
             // Connect button
@@ -551,6 +571,11 @@ struct SettingsView: View {
 
     private var elevenLabsSection: some View {
         Section {
+            HStack(spacing: 14) {
+                settingIcon("person.wave.2.fill", color: .cyan)
+                Toggle("Apple Voice (female)", isOn: $config.useAppleVoice)
+            }
+
             HStack(spacing: 14) {
                 settingIcon("key.fill", color: .cyan)
                 Text("API Key")
@@ -706,20 +731,49 @@ struct SettingsView: View {
     private var vehicleSection: some View {
         Section {
             HStack(spacing: 14) {
-                settingIcon("key.fill", color: .blue)
-                Text("DVLA VES")
+                settingIcon("checkmark.seal.fill", color: .green)
+                Text("Tax & MOT checks")
                 Spacer()
-                SecureField("API key (required)", text: $config.dvlaAPIKey)
-                    .multilineTextAlignment(.trailing)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                Text("No key needed")
+                    .foregroundStyle(.secondary)
             }
         } header: {
             Label("Vehicle Mode", systemImage: "car.circle")
                 .textCase(nil)
                 .font(.subheadline.weight(.semibold))
         } footer: {
-            Text("Vehicle mode reads UK number plates and checks tax and MOT status via the DVLA Vehicle Enquiry Service. Get a free API key from the DVLA developer portal (developer-portal.driver-vehicle-licensing.api.gov.uk). Insurance checks open askMID for you to complete manually. Lookups are not stored.")
+            Text("Vehicle mode reads UK number plates and checks tax and MOT status via the gov.uk \u{201C}Check if a vehicle is taxed\u{201D} service — no API key required. Insurance checks open askMID for you to complete manually. Lookups are not stored.")
+        }
+    }
+
+    // MARK: - Developer Section
+
+    private var developerSection: some View {
+        Section {
+            // Live pipeline diagnostics (only meaningful when glasses are the
+            // active frame source)
+            if activeFrameSource == .rayBan {
+                RayBanDiagnosticsView(
+                    rayBanManager: rayBanManager,
+                    frameSourceStatus: frameSourceStatus
+                )
+                .padding(.vertical, 4)
+            } else {
+                HStack(spacing: 14) {
+                    settingIcon("waveform.path.ecg", color: .gray)
+                    Text("Camera diagnostics")
+                    Spacer()
+                    Text("Ray-Ban source only")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Label("Developer", systemImage: "hammer.circle")
+                .textCase(nil)
+                .font(.subheadline.weight(.semibold))
+        } footer: {
+            Text("Live checklist of the glasses video pipeline — shows which gate is blocking the feed.")
         }
     }
 

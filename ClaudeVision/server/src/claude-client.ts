@@ -32,8 +32,13 @@ export class ClaudeClient {
   async chat(
     history: MessageParam[],
     text: string,
-    images?: string[]
+    images?: string[],
+    tier: "fast" | "smart" = "fast"
   ): Promise<{ responseText: string; toolCalls: ToolCallResult[] }> {
+    // Fastest model first: voice questions default to the fast tier; the app
+    // requests "smart" when the user explicitly asks for depth.
+    const model = tier === "smart" ? this.config.model : this.config.fastModel;
+    console.log(`[Claude] Routing to ${model} (tier: ${tier})`);
     // Build the user message content
     const content: Anthropic.ContentBlockParam[] = [];
 
@@ -69,7 +74,7 @@ export class ClaudeClient {
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const response = await this.anthropic.messages.create({
-        model: this.config.model,
+        model,
         max_tokens: this.config.maxTokens,
         system: this.config.systemPrompt,
         messages: currentMessages,

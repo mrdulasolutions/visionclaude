@@ -6,6 +6,9 @@ export interface ChatRequest {
   text: string;
   images?: string[]; // base64 JPEG strings
   conversation_id?: string;
+  // "fast" (default) answers with the low-latency model; "smart" escalates
+  // to the more capable one (e.g. the user asked to "tell me more").
+  tier?: "fast" | "smart";
 }
 
 export interface ToolCallResult {
@@ -24,12 +27,14 @@ export interface ChatResponse {
 export interface ConfigUpdate {
   system_prompt?: string;
   model?: string;
+  fast_model?: string;
   max_tokens?: number;
 }
 
 export interface ServerConfig {
   systemPrompt: string;
-  model: string;
+  model: string;      // "smart" tier — escalations
+  fastModel: string;  // "fast" tier — default for voice questions (latency)
   maxTokens: number;
 }
 

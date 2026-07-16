@@ -15,16 +15,32 @@ struct TranscriptView: View {
                 .padding(.vertical, 12)
                 .padding(.horizontal, 4)
             }
+            // Start pinned to the newest message and stay pinned as content
+            // grows — without this the view opens at the TOP of the history.
+            .defaultScrollAnchor(.bottom)
+            .onAppear { scrollToBottom(proxy, animated: false) }
             .onChange(of: messages.count) { _, _ in
-                if let last = messages.last {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
+                scrollToBottom(proxy, animated: true)
             }
         }
         .background(.black.opacity(0.3))
         .cornerRadius(16)
+    }
+
+    /// Scrolls after the current layout pass. LazyVStack hasn't laid out a
+    /// just-appended row when onChange fires — scrolling immediately lands
+    /// short of the newest message, which is why replies were getting cut off.
+    private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
+        guard let last = messages.last else { return }
+        DispatchQueue.main.async {
+            if animated {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    proxy.scrollTo(last.id, anchor: .bottom)
+                }
+            } else {
+                proxy.scrollTo(last.id, anchor: .bottom)
+            }
+        }
     }
 }
 
@@ -39,7 +55,7 @@ struct MessageBubble: View {
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
                 // Role label
-                Text(isUser ? "You" : "Claude")
+                Text(isUser ? "You" : "Flux")
                     .font(.custom("Verdana-Bold", size: 10))
                     .foregroundColor(isUser ? .blue : .orange)
                     .textCase(.uppercase)

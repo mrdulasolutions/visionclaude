@@ -28,6 +28,7 @@ protocol FrameSource: AnyObject {
 
 enum FrameSourceStatus {
     case disconnected
+    case standby      // source available, stream intentionally off (on-demand idle)
     case connecting
     case connected
     case error(String)
@@ -35,6 +36,7 @@ enum FrameSourceStatus {
     var label: String {
         switch self {
         case .disconnected: return "Disconnected"
+        case .standby: return "Connected — camera idle"
         case .connecting: return "Connecting..."
         case .connected: return "Connected"
         case .error(let msg): return "Error: \(msg)"

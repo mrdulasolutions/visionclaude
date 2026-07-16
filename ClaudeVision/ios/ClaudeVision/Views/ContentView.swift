@@ -117,6 +117,12 @@ struct ContentView: View {
                     .padding(.bottom, 8)
             }
         }
+        .sheet(isPresented: $viewModel.showBookOffers) {
+            BookOffersView(
+                bookTitle: viewModel.bookOffersTitle,
+                offers: viewModel.bookOffers
+            )
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView(
                 config: $viewModel.config,
@@ -183,16 +189,6 @@ struct ContentView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-
-                        // Live pipeline checklist — shows which gate is blocking the feed
-                        RayBanDiagnosticsView(
-                            rayBanManager: viewModel.rayBanManager,
-                            frameSourceStatus: viewModel.frameSourceStatus
-                        )
-                        .padding(16)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .padding(.horizontal, 32)
-                        .padding(.top, 8)
                     }
                 }
             }

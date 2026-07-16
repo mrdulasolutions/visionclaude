@@ -6,13 +6,15 @@ struct ClaudeConfig: Codable {
     var videoFrameInterval: TimeInterval = 1.0
     var videoJPEGQuality: Double = 0.85
     var speechPauseThreshold: TimeInterval = 1.0
+    var useAppleVoice: Bool = true       // local female Apple voice for replies (skip ElevenLabs + remote TTS)
     var elevenLabsAPIKey: String = ""
     var elevenLabsVoiceId: String = "21m00Tcm4TlvDq8ikWAM" // Rachel (default)
     var channelToken: String = ""
-    var wakeWordEnabled: Bool = true      // only send speech addressed with "hey claude"
+    var wakeWordEnabled: Bool = true      // only send speech addressed with "OK Flux"
     var onDemandCamera: Bool = true       // stream video only when a question needs vision
     var cameraIdleTimeout: TimeInterval = 30  // seconds before an on-demand stream shuts off
     var plantNetAPIKey: String = ""
+    var glassesVideoPreset: String = "fullhd"  // fullhd | hfr | hires — maps to DAT StreamConfiguration
 
     // Food mode health profile
     var foodAvoidUPF: Bool = false
@@ -22,9 +24,6 @@ struct ClaudeConfig: Codable {
     // Trip mode
     var googlePlacesAPIKey: String = ""
     var tripAdvisorAPIKey: String = ""
-
-    // Vehicle mode
-    var dvlaAPIKey: String = ""
 
     init() {}
 
@@ -38,6 +37,7 @@ struct ClaudeConfig: Codable {
         videoFrameInterval = (try? c.decode(TimeInterval.self, forKey: .videoFrameInterval)) ?? d.videoFrameInterval
         videoJPEGQuality = (try? c.decode(Double.self, forKey: .videoJPEGQuality)) ?? d.videoJPEGQuality
         speechPauseThreshold = (try? c.decode(TimeInterval.self, forKey: .speechPauseThreshold)) ?? d.speechPauseThreshold
+        useAppleVoice = (try? c.decode(Bool.self, forKey: .useAppleVoice)) ?? d.useAppleVoice
         elevenLabsAPIKey = (try? c.decode(String.self, forKey: .elevenLabsAPIKey)) ?? d.elevenLabsAPIKey
         elevenLabsVoiceId = (try? c.decode(String.self, forKey: .elevenLabsVoiceId)) ?? d.elevenLabsVoiceId
         channelToken = (try? c.decode(String.self, forKey: .channelToken)) ?? d.channelToken
@@ -45,20 +45,20 @@ struct ClaudeConfig: Codable {
         onDemandCamera = (try? c.decode(Bool.self, forKey: .onDemandCamera)) ?? d.onDemandCamera
         cameraIdleTimeout = (try? c.decode(TimeInterval.self, forKey: .cameraIdleTimeout)) ?? d.cameraIdleTimeout
         plantNetAPIKey = (try? c.decode(String.self, forKey: .plantNetAPIKey)) ?? d.plantNetAPIKey
+        glassesVideoPreset = (try? c.decode(String.self, forKey: .glassesVideoPreset)) ?? d.glassesVideoPreset
         foodAvoidUPF = (try? c.decode(Bool.self, forKey: .foodAvoidUPF)) ?? d.foodAvoidUPF
         foodWatchSalt = (try? c.decode(Bool.self, forKey: .foodWatchSalt)) ?? d.foodWatchSalt
         foodWatchSaturatedFat = (try? c.decode(Bool.self, forKey: .foodWatchSaturatedFat)) ?? d.foodWatchSaturatedFat
         googlePlacesAPIKey = (try? c.decode(String.self, forKey: .googlePlacesAPIKey)) ?? d.googlePlacesAPIKey
         tripAdvisorAPIKey = (try? c.decode(String.self, forKey: .tripAdvisorAPIKey)) ?? d.tripAdvisorAPIKey
-        dvlaAPIKey = (try? c.decode(String.self, forKey: .dvlaAPIKey)) ?? d.dvlaAPIKey
     }
 
     private enum CodingKeys: String, CodingKey {
         case gatewayHost, gatewayPort, videoFrameInterval, videoJPEGQuality
-        case speechPauseThreshold, elevenLabsAPIKey, elevenLabsVoiceId, channelToken
+        case speechPauseThreshold, useAppleVoice, elevenLabsAPIKey, elevenLabsVoiceId, channelToken
         case wakeWordEnabled, onDemandCamera, cameraIdleTimeout
-        case plantNetAPIKey, foodAvoidUPF, foodWatchSalt, foodWatchSaturatedFat
-        case googlePlacesAPIKey, tripAdvisorAPIKey, dvlaAPIKey
+        case plantNetAPIKey, foodAvoidUPF, foodWatchSalt, foodWatchSaturatedFat, glassesVideoPreset
+        case googlePlacesAPIKey, tripAdvisorAPIKey
     }
 
     var baseURL: URL {

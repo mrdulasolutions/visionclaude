@@ -89,17 +89,84 @@ final class LookupServiceTests: XCTestCase {
         XCTAssertTrue(summary.contains("marked for export"))
     }
 
-    func testDVLAResponseDecodes() throws {
-        // Shape of a real VES 200 response
-        let json = """
-        {"registrationNumber":"AB12CDE","taxStatus":"Untaxed","taxDueDate":"2025-03-01",
-         "motStatus":"Valid","motExpiryDate":"2026-09-14","make":"FORD","colour":"RED",
-         "fuelType":"DIESEL","engineCapacity":1995,"yearOfManufacture":2016,"co2Emissions":120}
-        """.data(using: .utf8)!
-        let vehicle = try JSONDecoder().decode(VehicleCheckService.Vehicle.self, from: json)
+    // MARK: - VehicleCheckService gov.uk HTML parsing
+
+    /// Trimmed from a real /VehicleFound response (vehicleenquiry.service.gov.uk,
+    /// July 2026) — the markup shape is the contract the parser depends on.
+    private let vehicleFoundHTML = """
+    <form action="/cookie-policy?locale=en" method="post">
+    <input type="hidden" name="authenticity_token" value="banner-token" autocomplete="off" />
+    </form>
+    <input type="hidden" name="authenticity_token" value="enquiry-token" autocomplete="off" />
+    <div class="govuk-panel govuk-panel--confirmation govuk-panel--fixed-height" id="tax-status-panel">
+    <h2 class="govuk-panel__title govuk-!-font-size-36">
+    <span aria-hidden="true">✓ Taxed</span>
+    <span class="govuk-visually-hidden">Vehicle AB12CDE is Taxed</span>
+    </h2>
+    <div class="govuk-panel__body govuk-!-font-size-24">
+    <strong class="white"><span class="govuk-!-display-inline-block">Tax due:
+    1 December 2026</span></strong>
+    </div>
+    </div>
+    <div class="govuk-panel govuk-panel--confirmation govuk-panel--fixed-height" id="mot-status-panel">
+    <h2 class="govuk-panel__title govuk-!-font-size-36">
+    <span aria-hidden="true">✓ MOT</span>
+    <span class="govuk-visually-hidden" id="mot_hidden_details">Vehicle AB12CDE has a valid MOT certificate</span>
+    </h2>
+    <div class="govuk-panel__body govuk-!-font-size-24">
+    <strong class="white"><span class="govuk-!-display-inline-block">Expires:
+    11 June 2027</span></strong>
+    </div>
+    </div>
+    <div class="govuk-summary-list__row" id="make"><dt>Vehicle make</dt><dd>VAUXHALL</dd></div>
+    <div class="govuk-summary-list__row" id="year_of_manufacture"><dt>Year of manufacture</dt><dd>2017</dd></div>
+    <div class="govuk-summary-list__row" id="engine_capacity"><dt>Cylinder capacity</dt><dd>1399 cc</dd></div>
+    <div class="govuk-summary-list__row" id="co2_emissions"><dt>CO₂ emissions</dt><dd>128 g/km</dd></div>
+    <div class="govuk-summary-list__row" id="fuel_type"><dt>Fuel type</dt><dd>PETROL</dd></div>
+    <div class="govuk-summary-list__row" id="euro_status"><dt>Euro status</dt><dd>Not available</dd></div>
+    <div class="govuk-summary-list__row" id="marked_for_export"><dt>Export marker</dt><dd>No</dd></div>
+    <div class="govuk-summary-list__row" id="vehicleStatus"><dt>Vehicle status</dt><dd>Taxed</dd></div>
+    <div class="govuk-summary-list__row" id="colour"><dt>Vehicle colour</dt><dd>WHITE</dd></div>
+    """
+
+    func testGovUKResultsPageParses() throws {
+        let vehicle = try XCTUnwrap(VehicleCheckService.parseVehicle(html: vehicleFoundHTML, vrn: "AB12CDE"))
         XCTAssertEqual(vehicle.registrationNumber, "AB12CDE")
-        XCTAssertEqual(vehicle.taxStatus, "Untaxed")
-        XCTAssertNil(vehicle.markedForExport, "absent optional fields decode as nil, not an error")
+        XCTAssertEqual(vehicle.taxStatus, "Taxed")
+        XCTAssertEqual(vehicle.taxDueDate, "1 December 2026", "wrapped date text is whitespace-collapsed")
+        XCTAssertEqual(vehicle.motStatus, "Valid")
+        XCTAssertEqual(vehicle.motExpiryDate, "11 June 2027")
+        XCTAssertEqual(vehicle.make, "VAUXHALL")
+        XCTAssertEqual(vehicle.colour, "WHITE")
+        XCTAssertEqual(vehicle.fuelType, "PETROL")
+        XCTAssertEqual(vehicle.engineCapacity, 1399)
+        XCTAssertEqual(vehicle.yearOfManufacture, 2017)
+        XCTAssertEqual(vehicle.co2Emissions, 128)
+        XCTAssertEqual(vehicle.markedForExport, false)
+    }
+
+    func testGovUKAuthenticityTokenSkipsTheCookieBannerForm() {
+        XCTAssertEqual(VehicleCheckService.authenticityToken(in: vehicleFoundHTML), "enquiry-token",
+                       "pages carry two tokens; the enquiry form's is last")
+    }
+
+    func testGovUKNotAvailableCollapsesToNil() {
+        XCTAssertNil(VehicleCheckService.summaryValue(id: "euro_status", in: vehicleFoundHTML))
+    }
+
+    func testGovUKExpiredStatusesParse() {
+        let html = vehicleFoundHTML
+            .replacingOccurrences(of: "Vehicle AB12CDE is Taxed", with: "Vehicle AB12CDE is Untaxed")
+            .replacingOccurrences(of: "Vehicle AB12CDE has a valid MOT certificate",
+                                  with: "Vehicle AB12CDE does not have a valid MOT")
+        let vehicle = VehicleCheckService.parseVehicle(html: html, vrn: "AB12CDE")
+        XCTAssertEqual(vehicle?.taxStatus, "Untaxed")
+        XCTAssertEqual(vehicle?.motStatus, "Not valid")
+    }
+
+    func testGovUKPageWithoutStatusPanelsFailsParsing() {
+        XCTAssertNil(VehicleCheckService.parseVehicle(html: "<html><body>maintenance</body></html>", vrn: "AB12CDE"),
+                     "a changed page must fail loudly, not return an empty record")
     }
 
     // MARK: - VenueFinderService.promptSummary
